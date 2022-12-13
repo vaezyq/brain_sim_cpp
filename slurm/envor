@@ -1,0 +1,23 @@
+HPI_PATH = /public/software/compiler/rocm/rocm-4.0.1/hip
+
+HIPCC =/public/software/compiler/rocm/rocm-4.0.1/hip/bin/hipcc
+
+ifeq ($(dbg),1)
+      CXXFLAGS     := -std=c++11 -g -DDEBUG -fPIC  #-D__HIP_PLATFORM_HCC__
+else
+      CXXFLAGS     := -std=c++11 -fPIC
+endif
+
+
+HIPFLAGS := -m64 --amdgpu-target=gfx906
+
+
+HIP_PATH ?=  $(wildcard /opt/rocm/hip)
+
+INCLUDES  := -I./include -I$(HIP_PATH)/../include -I$(HIP_PATH)/../rocrand/include -I$(HIP_PATH)/../hiprand/include -I$(HIP_PATH)/include -I$(HIP_PATH)/../rocprim/include
+
+
+
+$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) $(INCLUDES) `pkg-config --cflags protobuf grpc` $(MPICFLAG)  -o $@ -c $<
+
+/public/software/compiler/rocm/rocm-4.0.1/hip/bin/hipcc -std=c++11 -fPIC -m64 --amdgpu-target=gfx906 -I/public/software/compiler/rocm/rocm-4.0.1/hip/include -I/public/software/compiler/rocm/rocm-4.0.1/rocrand/include -I/public/software/compiler/rocm/rocm-4.0.1/hiprand/include -I/public/software/compiler/rocm/rocm-4.0.1/hip/include -I/public/software/compiler/rocm/rocm-4.0.1/rocprim/include `pkg-config --cflags protobuf grpc`   -o randomTest.o -c randomTest.cpp
