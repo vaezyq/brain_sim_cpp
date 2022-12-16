@@ -43,6 +43,14 @@ namespace dtb {
          */
         virtual void compute_simulation_traffic(int argc, char **argv);
 
+        /*!
+         * 根据路由表计算执行参数下的发送map
+         * @param send_idx 发送gpu卡编号
+         * @param recv_idxs 需要计算的列表lists
+         * @return 返回对recv_idxs计算的并包特性
+         */
+        static std::unique_ptr<std::unordered_map<unsigned, std::vector<unsigned >>>
+        get_list_send_by_route_table(const unsigned &send_idx, const std::vector<unsigned> &recv_idxs);
 
     protected:
 
@@ -59,16 +67,6 @@ namespace dtb {
          * 对于每一个体素需要模拟的神经元数目
          */
         std::array<unsigned long, POP_NUM> pops_sam_range;
-
-
-        /*!
-         * 根据路由表计算执行参数下的发送map
-         * @param send_idx 发送gpu卡编号
-         * @param recv_idxs 需要计算的列表lists
-         * @return 返回对recv_idxs计算的并包特性
-         */
-        static std::unique_ptr<std::unordered_map<unsigned, std::vector<unsigned >>>
-        get_list_send_by_route_table(const unsigned &send_idx, const std::vector<unsigned> &recv_idxs);
 
 
         static std::shared_ptr<LoadData> load_data_ptr; //需要load_data实例加载数据
@@ -92,20 +90,29 @@ namespace dtb {
             sample_times = get_sample_times(k_out, gpu_in_idx);
             sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out);
 //            printf("sample_times %d, sample range %d, gpu_in_idx %d\n", sample_times, sample_range, gpu_in_idx);
-            if (sample_times != 0) {
-                printf("sample_times %d, sample range %d, gpu_in_idx %d\n", sample_times, sample_range, gpu_in_idx);
-//                printf("gpu_in_idx %d\n")
-//            sample_range = static_cast<unsigned int> (pops_sam_range[k_out] * v_out);
-            }
+//            if (sample_times != 0) {
+//                printf("sample_times %d, sample range %d, gpu_in_idx %d gpu_out_idx %d\n", sample_times, sample_range,
+//                       gpu_in_idx, gpu_out_idx);
+////                printf("gpu_in_idx %d\n")
+////                sample_range = static_cast<unsigned int> (pops_sam_range[k_out] * v_out);
+//            }
+
+//            if (sample_times != 0) {
+//                printf("sample_times %d, sample range %d\n", sample_times, sample_range);
+////                printf("gpu_in_idx %d\n")
+////                sample_range = static_cast<unsigned int> (pops_sam_range[k_out] * v_out);
+//            }
 
             std::chrono::time_point<std::chrono::system_clock> start, end;
             start = std::chrono::system_clock::now();
             if (sample_times != 0) {
-                traffic_gpu_to_gpu += sample_range;
+                if ((sample_range << 2) < sample_times) {
+                    traffic_gpu_to_gpu += sample_range;
+                } else {
+                    traffic_gpu_to_gpu += sample(sample_range, sample_times);
+                }
             }
         }
-
-
         return traffic_gpu_to_gpu;
     }
 
@@ -116,25 +123,36 @@ namespace dtb {
 
         unsigned long traffic_gpu_to_group{0};
 
-        unsigned int sample_times{0}, sample_range{0};
-
         for (auto [k_out, v_out]: load_data_ptr->getMapTable()[gpu_out_idx]) {
+            unsigned sample_times{0}, sample_range{0};
             for (auto const &gpu_in_idx: gpu_in_list) {
                 sample_times += get_sample_times(k_out,
                                                  gpu_in_idx);     //这里每次get_sample_times都做了double到int的转换，有可能损失较大一些
             }
             sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out);
-            traffic_gpu_to_group += sample(sample_range, sample_times);
+
+            if (sample_times != 0) {
+                if ((sample_range << 2) < sample_times) {
+                    traffic_gpu_to_group += sample_range;
+                } else {
+                    traffic_gpu_to_group += sample(sample_range, sample_times);
+                }
+            }
 //            std::cout << sample_range << " " << sample_times << " " << traffic_gpu_to_gpu<<std::endl;
         }
         return traffic_gpu_to_group;
     }
 
     unsigned int SimulationOneDimTraffic::get_sample_times(const int &out_pop_idx, const unsigned &gpu_in_idx) {
-        double conn_number_estimate{0.0}, key_temp{0.0};
+        double conn_number_estimate{0.0};
+        unsigned long long key_temp{0};
         std::vector<double> traffic_src_to_dst;
         for (auto &[k_in, v_in]: load_data_ptr->getMapTable()[gpu_in_idx]) {
-            key_temp = k_in * POP_NUM + out_pop_idx;
+
+            //todo:  这里是unsigned int,如果直接做乘法会出现精度损失，所以这里都要做转型(或许有更快的方法)
+            key_temp = static_cast<unsigned long> ( k_in) * (POP_NUM) + (out_pop_idx);
+//            std::cout << key_temp << std::endl;
+//            std::cout << "out_pop_idx: " << out_pop_idx << " k_in: " << k_in << std::endl;
             if (auto iter = load_data_ptr->getConnDictTable().find(key_temp);iter !=
                                                                              load_data_ptr->getConnDictTable().end()) {
                 conn_number_estimate = NEURON_NUM * load_data_ptr->getSizeTable()[k_in] * v_in *
@@ -189,8 +207,6 @@ namespace dtb {
             //todo: 为什么vector类型不能写入
             write_vector_data_file(traffic_res, traffic_path);
         } else {   //辅进程负责计算前面各项
-
-
             TimePrint t;    //获取计算时间
             unsigned cal_row_pre_process = GPU_NUM / (num - 1);
             unsigned start_gpu_idx = cal_row_pre_process * rank;
@@ -236,9 +252,13 @@ namespace dtb {
 
         std::unique_ptr<std::unordered_map<unsigned, std::vector<unsigned >>> send_dict_ptr = std::make_unique<std::unordered_map<unsigned, std::vector<unsigned >>>(
                 std::unordered_map<unsigned, std::vector<unsigned >>());
+
+
         std::copy_if(send_dict.begin(), send_dict.end(), std::inserter(*send_dict_ptr, (*send_dict_ptr).end()),
-                     [](decltype(send_dict)::value_type const &kv_pair) {
-                         return kv_pair.second.size() != 1;
+                     [send_idx](decltype(send_dict)::value_type const &kv_pair) {
+                         return !(kv_pair.second.size() != 1 &&
+                                  std::find(kv_pair.second.begin(), kv_pair.second.end(), send_idx) !=
+                                  kv_pair.second.end());
                      });
         return send_dict_ptr;
     }

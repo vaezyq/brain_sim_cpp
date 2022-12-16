@@ -7,6 +7,8 @@ namespace dtb {
 
     private:
         static constexpr short dimensions = 2;
+
+        static constexpr short dou_dimensions = dimensions << 1;
     public:
         /*!
          * 计算指定维度的输入、输出流量(递归版本)
@@ -20,6 +22,17 @@ namespace dtb {
                                                                 std::array<unsigned, GPU_NUM * 2 *
                                                                                      dimensions> &output_input_traffic,
                                                                 const std::unordered_map<unsigned, std::vector<unsigned >> &forward_list_send);
+
+        /*!
+         * 计算二维流量的非迭代版本，目前是有效的版本，可以注意到所有维度的发送方都是最初的send_idx
+         * //todo: 关于上述的迭代版本和三维四维的流量如何计算还需要进一步验证
+         * @param send_idx
+         * @param output_input_traffic
+         */
+        void simulate_specific_dim_input_output_traffic_per_gpu_no_recursive(const unsigned &send_idx,
+                                                                             std::array<unsigned, GPU_NUM * 2 *
+                                                                                                  dimensions> &output_input_traffic);
+
 
         /*!
         * 计算指定维度流量
@@ -37,28 +50,26 @@ namespace dtb {
                                                                                       std::array<unsigned, GPU_NUM * 2 *
                                                                                                            dimensions> &output_input_traffic,
                                                                                       const std::unordered_map<unsigned int, std::vector<unsigned int>> &forward_list_send) {
-        if (stage < 0) {
+        if (dimensions <= stage) {
             return;
         }
         for (auto &in_idx_pair: forward_list_send) {
             if (in_idx_pair.second.size() == 1) {
-                if (!is_in_same_node(send_idx, in_idx_pair.second[0])) {
+                if (!is_in_same_node(send_idx, in_idx_pair.first)) {
                     auto temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair.first);
 
-                    output_input_traffic[send_idx * dimensions + stage] += temp_traffic;
-                    output_input_traffic[in_idx_pair.second[0] * dimensions + stage + dimensions] += temp_traffic;
-                    return;
-                } else {
-                    auto temp_traffic = sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
-
-                    output_input_traffic[send_idx * dimensions + stage] += temp_traffic;
-                    output_input_traffic[in_idx_pair.first * dimensions + stage + dimensions] += temp_traffic;
-                    auto const &forward_sub_idx = get_list_send_by_route_table(in_idx_pair.first,
-                                                                               in_idx_pair.second);
-
-                    simulate_specific_dim_input_output_traffic_per_gpu(in_idx_pair.first, stage - 1,
-                                                                       output_input_traffic, *forward_sub_idx);
+                    output_input_traffic[send_idx * dou_dimensions + stage] += temp_traffic;
+//                    output_input_traffic[in_idx_pair.first * dou_dimensions + stage + dimensions] += temp_traffic;
                 }
+            } else {
+                auto temp_traffic = sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
+                output_input_traffic[send_idx * dou_dimensions + stage] += temp_traffic;
+//                output_input_traffic[in_idx_pair.first * dou_dimensions + stage + dimensions] += temp_traffic;
+
+                auto forward_sub_idx = get_list_send_by_route_table(in_idx_pair.first,
+                                                                    in_idx_pair.second);
+                simulate_specific_dim_input_output_traffic_per_gpu(in_idx_pair.first, stage + 1,
+                                                                   output_input_traffic, *forward_sub_idx);
             }
 
         }
@@ -66,7 +77,6 @@ namespace dtb {
 
     void SimulationHighDimTraffic::compute_simulation_traffic(int argc, char **argv) {
         MPI_Init(&argc, &argv);
-
         int rank, num;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &num);
@@ -79,8 +89,6 @@ namespace dtb {
                 std::array<unsigned int, GPU_NUM * 2 * dimensions> temp_traffic{};
                 MPI_Recv(&temp_traffic[0], static_cast<int>  (GPU_NUM * 2 * dimensions), MPI_UNSIGNED, i,
                          MPI_ANY_TAG, MPI_COMM_WORLD, &st);
-
-
                 std::transform(output_input_traffic.begin(), output_input_traffic.end(),
                                temp_traffic.begin(), output_input_traffic.begin(),
                                [](unsigned a, unsigned b) { return a + b; });
@@ -90,9 +98,13 @@ namespace dtb {
             std::vector<unsigned> recv_lists(GPU_NUM, 0);
             std::generate(recv_lists.begin(), recv_lists.end(), [i = 1]()mutable { return i++; });
             for (auto i = cal_row_pre_process * (num - 1); i != GPU_NUM; ++i) {     //计算最后一部分剩余流量
-                auto const &forward_idx = get_list_send_by_route_table(i, recv_lists);
-                simulate_specific_dim_input_output_traffic_per_gpu(i, dimensions - 1, output_input_traffic,
-                                                                   *forward_idx);
+
+                simulate_specific_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
+
+//                auto const forward_idx = get_list_send_by_route_table(i, recv_lists);
+//
+//                simulate_specific_dim_input_output_traffic_per_gpu(i, 0, output_input_traffic,
+//                                                                   *forward_idx);
             }
             std::string traffic_path =
                     BaseInfo::getInstance()->traffic_tables_path + "/" + "traffic_" + std::to_string(dimensions) +
@@ -110,16 +122,49 @@ namespace dtb {
             std::vector<unsigned> recv_lists(GPU_NUM, 0);
             std::generate(recv_lists.begin(), recv_lists.end(), [i = 1]()mutable { return i++; });
             for (auto i = start_gpu_idx; i != end_gpu_idx; ++i) {
-                auto const &forward_idx = get_list_send_by_route_table(i, recv_lists);
-                simulate_specific_dim_input_output_traffic_per_gpu(i, dimensions - 1, output_input_traffic,
-                                                                   *forward_idx);
+//                auto const &forward_idx = get_list_send_by_route_table(i, recv_lists);
+//                simulate_specific_dim_input_output_traffic_per_gpu(i, dimensions - 1, output_input_traffic,
+//                                                                   *forward_idx);
+                simulate_specific_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
             }
-
             MPI_Send(&output_input_traffic[0], static_cast<int>(GPU_NUM * 2 * dimensions), MPI_UNSIGNED, num - 1, 0,
                      MPI_COMM_WORLD);
             printf("process %d ", rank);
             t.print_time();
             MPI_Barrier(MPI_COMM_WORLD);        //阻塞等待全部收到,注意子线程也要加上同步
+        }
+    }
+
+    void SimulationHighDimTraffic::simulate_specific_dim_input_output_traffic_per_gpu_no_recursive(
+            const unsigned int &send_idx, std::array<unsigned int, GPU_NUM * 2 * dimensions> &output_input_traffic) {
+
+        //计算高维流量的非递归版本，主要用于流量验证
+        std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
+        std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
+
+        auto const &forward_list_send = get_list_send_by_route_table(send_idx, recv_lists);
+        for (auto &in_idx_pair: *forward_list_send) {
+            if (in_idx_pair.second.size() == 1) {
+                if (!is_in_same_node(send_idx, in_idx_pair.first)) {
+                    auto temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair.first);
+                    output_input_traffic[send_idx * dou_dimensions + 0] += temp_traffic;
+                    output_input_traffic[in_idx_pair.first * dou_dimensions + 0 + dimensions] += temp_traffic;
+                }
+            } else {
+                auto temp_traffic = sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
+                output_input_traffic[send_idx * dou_dimensions + 0] += temp_traffic;
+                output_input_traffic[in_idx_pair.first * dou_dimensions + 0 + dimensions] += temp_traffic;
+                auto forward_sub_idx = get_list_send_by_route_table(in_idx_pair.first,
+                                                                    in_idx_pair.second);
+                for (auto &in_idx_pair_1: *forward_sub_idx) {
+                    if (!is_in_same_node(send_idx, in_idx_pair_1.first)) {
+                        auto temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first);
+                        output_input_traffic[in_idx_pair.first * dou_dimensions + 1] += temp_traffic;
+                        output_input_traffic[in_idx_pair_1.first * dou_dimensions + 1 + dimensions] += temp_traffic;
+                    }
+                }
+            }
+
         }
 
 

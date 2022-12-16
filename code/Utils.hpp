@@ -101,11 +101,6 @@ namespace dtb {
         std::ifstream file_data;
         std::string line;
         file_data.open(file_path);
-        if (!file_data.is_open()) {
-            std::cout << "load file failed" << std::endl;
-            return;
-        }
-
         try {
             int idx = 0;
             while (getline(file_data, line)) {
@@ -114,7 +109,6 @@ namespace dtb {
         } catch (std::ios_base::failure &e) {
             std::cout << e.what() << std::endl;
         }
-
     }
 
 

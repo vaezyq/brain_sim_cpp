@@ -7,13 +7,16 @@
 #include <cassert>
 #include <array>
 
+
+//todo: 加载数据的部分或许可以参考
+//https://stackoverflow.com/questions/71661178/faster-way-of-loading-big-stdvectorstdvectorfloat-from-file
+//https://stackoverflow.com/questions/54238956/fastest-way-to-read-a-vectordouble-from-file
+//进行重构，目前使用stringstream比较慢
 namespace dtb {
 
 
     class LoadData {
     private:
-
-
         static std::shared_ptr<LoadData> instance_ptr;      //读取数据函数设计为单例,通过instance_ptr管理
 
         LoadData();
@@ -87,6 +90,9 @@ namespace dtb {
 
         LoadData &operator=(const LoadData &) = delete;
 
+        template<typename T>
+        static void load_one_dim_traffic_result(T &one_dim_traffic);
+
     };
 
     void LoadData::load_data() {
@@ -94,6 +100,7 @@ namespace dtb {
         assert(size_table.size() == POP_NUM);        //判断size是否读取正确
         assert(degree_table.size() == POP_NUM);        //判断degree是否读取正确
         assert(map_table.size() == GPU_NUM);         //判断map表是否读取正确
+        std::cout << "conn dict len: " << conn_dict_table.size() << std::endl;
         std::cout << "data load finished" << std::endl;
     }
 
@@ -233,16 +240,25 @@ namespace dtb {
         std::string line;
         route_table_file.open(base_info_ptr->route_path + "/" + base_info_ptr->route_file_name);
         //todo: 这里是否可以换成try catch
+
+
+
+
         if (!route_table_file.is_open()) {
             std::cout << "route file open failed" << std::endl;
             return;
         }
         int idx = 0;
+
         while (getline(route_table_file, line)) {  //每一行都是空格隔开的数字(含有GPU_NUM行)
             //todo: 这里只能读取默认路由表，因为每一行必须含有GPU_NUM个数字
-            for (unsigned i = 0; i < GPU_NUM; ++i) {
-                std::stringstream ss(line);//将字符串line放入到输入输出流ss中
-                while (ss >> default_route_table[idx][i]);
+            std::string item;
+            std::stringstream text_stream(line);
+
+            int i = 0;
+//            std::cout << line << std::endl;
+            while (getline(text_stream, item, ' ')) {
+                default_route_table[idx][i++] = stoi(item);
             }
             idx++;
         }
@@ -251,6 +267,34 @@ namespace dtb {
 
     LoadData::LoadData() {
         load_data();
+    }
+
+
+    template<typename T>
+    void LoadData::load_one_dim_traffic_result(T &one_dim_traffic) {
+        std::ifstream traffic_table_file;
+        std::string line;
+        std::string traffic_file_name = "traffic_table_base_dcu_out_in_1_dimmap_2000_sequential_cortical_v2.txt";
+        traffic_table_file.open(base_info_ptr->traffic_tables_path + traffic_file_name);
+        //todo: 这里是否可以换成try catch
+        if (!traffic_table_file.is_open()) {
+            std::cout << "traffic table file open failed" << std::endl;
+            return;
+        }
+        int idx = 0;
+//        std::cout << idx << std::endl;
+        while (getline(traffic_table_file, line)) {  //每一行都是空格隔开的数字(含有GPU_NUM行)
+            std::string item;
+            //todo: 不构造stringstream会更快，考虑是否有更快的方法
+            std::stringstream text_stream(line);
+            int i = 0;
+            while (std::getline(text_stream, item, ' ')) {
+                one_dim_traffic[idx][i++] = stod(item);
+            }
+//            std::cout << idx << std::endl;
+            idx++;
+        }
+        traffic_table_file.close();
     }
 }
 

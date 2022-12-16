@@ -4,14 +4,13 @@
 #include <memory>
 #include "Utils.hpp"
 
-#include <filesystem>
+//#include <filesystem>
 
 
+#include <experimental/filesystem>
 
-//#include <experimental/filesystem>
-
-//namespace fs = std::experimental::filesystem;
-namespace fs = std::filesystem;    //文件系统的命名空间，在HPC上要使用上面两个
+namespace fs = std::experimental::filesystem;
+//namespace fs = std::filesystem;    //文件系统的命名空间，在HPC上要使用上面两个
 
 namespace dtb {
     constexpr unsigned int GPU_NUM = 2000;        //模拟的GPU的个数
@@ -27,11 +26,10 @@ namespace dtb {
         const std::string route_path = tables_path + "/route_tables";     //路由表路径
         const std::string conn_path = tables_path + "/conn_tables";     //连接概率表路径
         const std::string traffic_tables_path =
-                tables_path + "/traffic_tables/traffic_" + std::to_string(GPU_NUM) + "/" +
-                "one_dim_traffic";       //流量表路径
+                tables_path + "/traffic_tables/traffic_" + std::to_string(GPU_NUM) + "/";//流量表路径
 
     public:    //文件路径
-        const std::string route_file_name = "route_default_10_10.txt";   //路由表文件名
+        const std::string route_file_name = "route_default_40_50.txt";   //路由表文件名
 
     public:
         /*!

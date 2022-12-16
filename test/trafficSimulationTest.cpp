@@ -5,39 +5,163 @@
 #include "../code/SimulationHighDimTraffic.hpp"
 #include <iostream>
 #include <mpi.h>
-
+#include <array>
+#include <vector>
+#include <random>
+#include <algorithm>
 
 using namespace std;
 
 int main(int argc, char **argv) {
 
-    vector<double> vec(dtb::GPU_NUM * dtb::GPU_NUM);
 
+    dtb::SimulationHighDimTraffic sim;
 
-//    dtb::SimulationOneDimTraffic sim;
-    dtb::LoadData::get_traffic_table(vec);
-    cout << vec.size() << endl;
-//    cout << traffic_table[0].size() << endl;
-    for (int i = 0; i < dtb::GPU_NUM; ++i) {
-        cout << vec[i] << endl;
-    }
+    sim.compute_simulation_traffic(argc, argv);
+    return 0;
 
-//    dtb::SimulationHighDimTraffic sim;
-////    sim.compute_simulation_traffic(argc, argv);
-////    return 0;
-////
-//    double res = 0.0;
-////    std::chrono::time_point<std::chrono::system_clock> start, end;
-////
-////    start = std::chrono::system_clock::now();
-//////    double traffic=sim.sim_traffic_between_two_gpu(0, 1999);
-//////    cout << 2000 << " " << traffic<< endl;
+//    sim.compute_simulation_traffic(argc, argv);
+//    auto ptr = dtb::LoadData::getLoadDataInstance();
+//
 //    for (int i = 0; i < dtb::GPU_NUM; ++i) {
-//        double traffic = sim.sim_traffic_between_two_gpu(100, i);
-//        cout << i << " " << traffic << endl;
-////        cout<<
-//        res += traffic;
+//        cout << ptr->getRouteTable()[0][i] << " ";
 //    }
+
+//    std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
+//    std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
+
+//    std::array<unsigned int, dtb::GPU_NUM << 2> output_input_traffic{};
+//
+//    auto const &forward_idx = sim.get_list_send_by_route_table(0, recv_lists);
+
+//    int index = 0;
+//    for (auto &e: *forward_idx) {
+//        cout << "e.first: " << e.first << " ";
+//        cout << endl;
+//        for_each(e.second.begin(), e.second.end(), [](int i) { cout << i << " "; });
+//        cout << endl;
+//        index++;
+//    }
+//    cout << index;
+
+//
+////
+//
+//    cout << sim.sim_traffic_between_gpu_group(1, {1, 2, 3, 4});
+//    auto const &forward_idx = sim.get_list_send_by_route_table(0, recv_lists);
+//    dtb::TimePrint tp;
+//
+//    for (auto i = 0; i != 1; ++i) {
+//        sim.simulate_specific_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
+////        sim.simulate_specific_dim_input_output_traffic_per_gpu(i, 0, output_input_traffic,
+////                                                               *forward_idx);
+//    }
+//    tp.print_time();
+//////
+//    for (int i = 0; i != 2000; i++) {
+//        if (output_input_traffic[4 * i] != 0 || output_input_traffic[4 * i + 1] != 0) {
+//            cout << i << " " << output_input_traffic[4 * i] << " "
+//                 << output_input_traffic[4 * i + 1] << endl;
+//        }
+//    }
+//
+//    cout << "input" << endl;
+//    for (int i = 0; i != 2000; i++) {
+//        if (output_input_traffic[4 * i + 2] != 0 || output_input_traffic[4 * i + 3] != 0) {
+//            cout << i << " " << output_input_traffic[4 * i + 2] << " "
+//                 << output_input_traffic[4 * i + 3] << endl;
+//        }
+//    }
+
+//    for_each(output_input_traffic.begin(), output_input_traffic.end(), [](int i) {
+//        cout << i << endl;
+//    });
+
+
+//
+//    auto ptr = dtb::LoadData::getLoadDataInstance();
+////    auto map_table= ptr->getMapTable();
+//    for (auto &e: ptr->getMapTable()[100]) {
+//        cout << e.first << " " << e.second << endl;
+//    }
+
+//
+//    std::vector<std::vector<double> > traffic_res(dtb::GPU_NUM, std::vector<double>(dtb::GPU_NUM, 0));
+////////
+//    dtb::LoadData::load_one_dim_traffic_result(traffic_res);
+//
+//    double res = 0;
+//
+//    dtb::TimePrint tp;
+//    for (int i = 0; i < 1; ++i) {
+//
+//        double traffic = sim.sim_traffic_between_two_gpu(100, i);
+//        res += traffic;
+////        cout << i << " " << traffic << " " << traffic_res[100][i] << endl;
+////        cout<<
+//    }
+//    cout << "traffic: " << res << endl;
+//    cout << accumulate(traffic_res[100].begin(), traffic_res[100].end(), 0.0) << endl;
+//    tp.print_time();
+
+
+//    for (int i = 10000; i <= 30000; i += 1000) {
+//        cout << i << " " << dtb::sample(i, 30000) << endl;
+//    }
+
+
+
+
+
+//    int N = 1000;
+//    vector<int> vec(N, 0);
+//    std::generate(vec.begin(), vec.end(), [n = 0]() mutable { return n++; });
+//
+//    vector<int> out;
+//    int sample_times = 10;
+//    std::sample(vec.begin(), vec.end(), std::back_inserter(out),
+//                sample_times, std::mt19937{std::random_device{}()});
+//    std::for_each(out.begin(), out.end(), [](int i) { cout << i << " "; });
+
+
+//
+//
+////
+//////    dtb::SimulationOneDimTraffic sim;
+//////    dtb::LoadData::get_traffic_table(vec);
+//////    cout << vec.size() << endl;
+//////    cout << traffic_table[0].size() << endl;
+////
+
+
+
+//    std::vector<std::vector<double> > traffic_res(dtb::GPU_NUM, std::vector<double>(dtb::GPU_NUM, 0));
+//////
+//    dtb::LoadData::load_one_dim_traffic_result(traffic_res);
+
+//    double res = 0;
+//    dtb::SimulationHighDimTraffic sim;
+//    for (int i = 1949; i < 1950; ++i) {
+//
+//        double traffic = sim.sim_traffic_between_two_gpu(100, i);
+//        res += traffic;
+//        cout << i << " " << traffic << " " << traffic_res[100][i] << endl;
+////        cout<<
+//    }
+//
+//    cout << "traffic: " << res << endl;
+//    cout << accumulate(traffic_res[100].begin(), traffic_res[100].end(), 0.0) << endl;
+
+//////    sim.compute_simulation_traffic(argc, argv);
+//////    return 0;
+//////
+////    double res = 0.0;
+//////    std::chrono::time_point<std::chrono::system_clock> start, end;
+//////
+//////    start = std::chrono::system_clock::now();
+////////    double traffic=sim.sim_traffic_between_two_gpu(0, 1999);
+////////    cout << 2000 << " " << traffic<< endl;
+
 //
 //
 //    cout << res << endl;
