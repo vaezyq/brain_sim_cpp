@@ -1,7 +1,7 @@
 //
 // Created by 王明龙 on 2022/12/5. 生成默认路由表
 //
-
+#pragma once
 
 #include <vector>
 #include <algorithm>

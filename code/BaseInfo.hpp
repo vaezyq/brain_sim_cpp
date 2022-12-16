@@ -1,16 +1,20 @@
 
+#pragma once   //不加这句话当对一个hpp文件重复include后，会出问题
 
 #include <string>
 #include <memory>
 #include "Utils.hpp"
 
-//#include <filesystem>
+#if __cplusplus >= 201703L
 
+#  include <filesystem>
 
-#include <experimental/filesystem>
-
+namespace fs = std::filesystem;
+#else
+#  include <experimental/filesystem
 namespace fs = std::experimental::filesystem;
-//namespace fs = std::filesystem;    //文件系统的命名空间，在HPC上要使用上面两个
+#endif
+
 
 namespace dtb {
     constexpr unsigned int GPU_NUM = 2000;        //模拟的GPU的个数
@@ -25,11 +29,20 @@ namespace dtb {
         const std::string tables_path = project_root + "/tables";       //表数据路径
         const std::string route_path = tables_path + "/route_tables";     //路由表路径
         const std::string conn_path = tables_path + "/conn_tables";     //连接概率表路径
+        const std::string map_path = tables_path + "/map_tables";     //连接概率表路径
         const std::string traffic_tables_path =
                 tables_path + "/traffic_tables/traffic_" + std::to_string(GPU_NUM) + "/";//流量表路径
 
     public:    //文件路径
         const std::string route_file_name = "route_default_40_50.txt";   //路由表文件名
+
+        const std::string conn_file_name = "conn_dict_int.txt";     //连接概率表文件名
+
+        const std::string map_file_name = "map.txt";        //map表文件名
+
+        const std::string size_file_name = "size.txt";   //size表文件名
+
+        const std::string degree_file_name = "degree.txt";    //degree表文件名
 
     public:
         /*!
@@ -63,6 +76,7 @@ namespace dtb {
             fs::create_directories(instance_ptr->route_path);      //迭代创建文件夹目录
             fs::create_directories(instance_ptr->conn_path);
             fs::create_directories(instance_ptr->traffic_tables_path);
+            fs::create_directories(instance_ptr->map_path);
 
         }
         return instance_ptr;

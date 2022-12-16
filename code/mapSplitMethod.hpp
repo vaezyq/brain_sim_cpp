@@ -1,3 +1,4 @@
+#pragma once
 
 #include <vector>
 #include <unordered_map>
@@ -19,7 +20,7 @@ namespace dtb {
 
     template<size_t size>
     void mapSplitMethod::split_pop_by_swap_max_min_pop(const std::array<unsigned long, size> &traffic_table) {
-        auto load_data_instance = loadData::getLoadDataInstance();
+        auto load_data_instance = LoadData::getLoadDataInstance();
         std::copy(load_data_instance->getMapTable().begin(), load_data_instance->getMapTable().end(),
                   std::back_inserter(map_table_before_change));
         auto &sort_indices = argsort(traffic_table);

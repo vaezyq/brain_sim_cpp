@@ -1,7 +1,7 @@
 //
 // Created by 22126 on 2022/12/11.
 //
-
+#pragma once
 #include "mapSplitMethod.hpp"
 
 

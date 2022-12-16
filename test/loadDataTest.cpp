@@ -7,7 +7,10 @@
 using namespace std;
 
 int main() {
-    auto ptr =dtb::LoadData::getLoadDataInstance();
+//    auto ptr = dtb::LoadData::getLoadDataInstance();
+//    for (int i = 0; i < 50; ++i) {
+//        cout << ptr->getRouteTable()[0][i] << " ";
+//    }
 //    ptr->load_map();
 
 //    loadData l;

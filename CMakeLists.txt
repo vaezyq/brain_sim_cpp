@@ -10,10 +10,12 @@ add_executable(generateDefaultRoute test/generateRoute.cpp)
 add_executable(loadDataTest test/loadDataTest.cpp)
 
 
-add_executable(simulationTrafficTest test/trafficSimulationTest.cpp code/mapSplitMethod.hpp code/SimulationHighDimTraffic.hpp)
+add_executable(simulationTrafficTest test/trafficSimulationTest.cpp code/mapSplitMethod.hpp code/SimulationHighDimTraffic.hpp code/MpiManage.hpp code/SimulationTrafficUtils.hpp)
 
 
 add_executable(randomTest test/testRandom.cpp)
+
+add_executable(someTest test/someTest.cpp)
 
 find_package(MPI REQUIRED)
 

@@ -1,9 +1,8 @@
 //
 // Created by 王明龙 on 2022/12/5.
 //
+#pragma once
 
-#ifndef BRAIN_SIM_UTILS_HPP
-#define BRAIN_SIM_UTILS_HPP
 
 #include <iostream>
 #include <cstdio>
@@ -98,29 +97,36 @@ namespace dtb {
 
     template<typename T, size_t N>
     void load_vector_data(std::array<T, N> &data, const std::string &file_path, const int len) {
-        std::ifstream file_data;
-        std::string line;
-        file_data.open(file_path);
         try {
+            std::ifstream file_data;
+            std::string line;
+            file_data.open(file_path);
+            file_data.exceptions(std::ifstream::badbit);
             int idx = 0;
             while (getline(file_data, line)) {
                 data[idx++] = strtod(line.substr(0, line.size()).c_str(), nullptr);
             }
         } catch (std::ios_base::failure &e) {
-            std::cout << e.what() << std::endl;
+            std::cout << "write result to file failed," << e.what() << std::endl;
+            std::terminate();
         }
     }
 
 
     template<typename T>
-    void write_vector_data_file(const T &data, std::string const &file_path) {
-        std::ofstream file_save_data(file_path);
+    void write_vector_data_file(const T &data, std::string const &file_path, unsigned col_len) {
+
         try {
+            std::ofstream file_save_data(file_path);
             for (auto const &x: data)
-                file_save_data << x << '\n';
+                for (int i = 0; i < col_len; ++i) {
+                    file_save_data << x << " ";
+                }
+            file_save_data << '\n';
             file_save_data.close();
         } catch (std::ios_base::failure &e) {
-            std::cout << e.what() << std::endl;
+            std::cout << "write result to file failed," << e.what() << std::endl;
+            std::terminate();
         }
     }
 
@@ -154,22 +160,22 @@ namespace dtb {
     template<size_t size>
     void
     load_traffic_result(std::array<unsigned long, size> &traffic_table, const std::string &traffic_file_path) {
-        std::ifstream traffic_table_file;
-        std::string line;
-        traffic_table_file.open(traffic_file_path);
-
-        if (!traffic_table_file.is_open()) {
-            std::cout << "traffic file open failed" << std::endl;
-            return;
+        try {
+            std::ifstream traffic_table_file;
+            std::string line;
+            traffic_table_file.open(traffic_file_path);
+            int idx = 0;
+            while (getline(traffic_table_file, line)) {
+                std::stringstream s(line);//将字符串line放入到输入输出流ss中
+                s >> traffic_table[idx];
+                idx++;
+            }
+            traffic_table_file.close();
+            print_max_min_aver_traffic_info(traffic_table);
+        } catch (std::ios_base::failure &e) {
+            std::cout << "load traffic result file failed," << e.what() << std::endl;
+            std::terminate();
         }
-        int idx = 0;
-        while (getline(traffic_table_file, line)) {
-            std::stringstream s(line);//将字符串line放入到输入输出流ss中
-            s >> traffic_table[idx];
-            idx++;
-        }
-        traffic_table_file.close();
-        print_max_min_aver_traffic_info(traffic_table);
     }
 
     template<typename T, size_t size>
@@ -185,5 +191,3 @@ namespace dtb {
 
 }
 
-
-#endif //BRAIN_SIM_UTILS_HPP
