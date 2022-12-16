@@ -2,23 +2,78 @@
 // Created by 22126 on 2022/12/6.
 //
 
-#include "../code/SimulationHighDimTraffic.hpp"
+//#include "../code/SimulationHighDimTraffic.hpp"
+
 #include <iostream>
 #include <mpi.h>
 #include <array>
 #include <vector>
 #include <random>
 #include <algorithm>
+#include "../code/SimulationTrafficUtils.hpp"
+#include "../code/SimulationOneDimTraffic.hpp"
+#include "../code/SimulationHighDimtraffic.hpp"
 
 using namespace std;
 
 int main(int argc, char **argv) {
 
 
-    dtb::SimulationHighDimTraffic sim;
+    int flag = 4;
 
-    sim.compute_simulation_traffic(argc, argv);
-    return 0;
+
+    if (flag == 1) {    //测试计算gpu to gpu的流量是否与真实模拟traffic.txt符合
+        std::vector<std::vector<double> > traffic_res(dtb::GPU_NUM, std::vector<double>(dtb::GPU_NUM, 0));
+        dtb::LoadData::load_one_dim_traffic_result(traffic_res);
+//        double res = 0;
+        dtb::SimulationTrafficUtils stu;
+        for (int i = 0; i < 100; ++i) {
+            double traffic = stu.sim_traffic_between_two_gpu(100, i);
+//            res += traffic;
+            cout << i << " " << traffic << " " << traffic_res[100][i] << endl;
+        }
+    } else if (flag == 2) {
+        dtb::SimulationTrafficUtils stu;
+
+        std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
+        std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
+
+        std::array<unsigned int, dtb::GPU_NUM << 2> output_input_traffic{};
+
+        auto const &forward_idx = stu.get_list_send_by_route_table(0, recv_lists);
+        for (auto i = 0; i != 1; ++i) {
+            stu.simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
+        }
+        for (int i = 0; i != 2000; i++) {
+            if (output_input_traffic[4 * i] != 0 || output_input_traffic[4 * i + 1] != 0) {
+                cout << i << " " << output_input_traffic[4 * i] << " "
+                     << output_input_traffic[4 * i + 1] << endl;
+            }
+        }
+
+        cout << "input" << endl;
+        for (int i = 0; i != 2000; i++) {
+            if (output_input_traffic[4 * i + 2] != 0 || output_input_traffic[4 * i + 3] != 0) {
+                cout << i << " " << output_input_traffic[4 * i + 2] << " "
+                     << output_input_traffic[4 * i + 3] << endl;
+            }
+        }
+    } else if (flag == 3) {
+        dtb::SimulationOneDimTraffic sod(argc, argv);
+        sod.show_basic_information();
+        sod.compute_simulation_traffic();
+    } else if (flag == 4) {
+        dtb::SimulationHighDimTraffic shd(argc, argv);
+        sod.show_basic_information();
+        sod.compute_simulation_traffic();
+    }
+
+
+
+
+
+
+
 
 //    sim.compute_simulation_traffic(argc, argv);
 //    auto ptr = dtb::LoadData::getLoadDataInstance();
@@ -27,12 +82,7 @@ int main(int argc, char **argv) {
 //        cout << ptr->getRouteTable()[0][i] << " ";
 //    }
 
-//    std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
-//    std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
 
-//    std::array<unsigned int, dtb::GPU_NUM << 2> output_input_traffic{};
-//
-//    auto const &forward_idx = sim.get_list_send_by_route_table(0, recv_lists);
 
 //    int index = 0;
 //    for (auto &e: *forward_idx) {
@@ -51,27 +101,7 @@ int main(int argc, char **argv) {
 //    auto const &forward_idx = sim.get_list_send_by_route_table(0, recv_lists);
 //    dtb::TimePrint tp;
 //
-//    for (auto i = 0; i != 1; ++i) {
-//        sim.simulate_specific_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
-////        sim.simulate_specific_dim_input_output_traffic_per_gpu(i, 0, output_input_traffic,
-////                                                               *forward_idx);
-//    }
-//    tp.print_time();
-//////
-//    for (int i = 0; i != 2000; i++) {
-//        if (output_input_traffic[4 * i] != 0 || output_input_traffic[4 * i + 1] != 0) {
-//            cout << i << " " << output_input_traffic[4 * i] << " "
-//                 << output_input_traffic[4 * i + 1] << endl;
-//        }
-//    }
-//
-//    cout << "input" << endl;
-//    for (int i = 0; i != 2000; i++) {
-//        if (output_input_traffic[4 * i + 2] != 0 || output_input_traffic[4 * i + 3] != 0) {
-//            cout << i << " " << output_input_traffic[4 * i + 2] << " "
-//                 << output_input_traffic[4 * i + 3] << endl;
-//        }
-//    }
+
 
 //    for_each(output_input_traffic.begin(), output_input_traffic.end(), [](int i) {
 //        cout << i << endl;

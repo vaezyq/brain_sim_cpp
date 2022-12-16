@@ -39,7 +39,7 @@ namespace dtb {
      * @param file_path 存入的目标文件
      */
     template<typename T>
-    void write_vector_data_file(const T &data, std::string const &file_path);
+    void write_vector_data_file(const T &data, std::string const &file_path, unsigned col_len);
 
     /*!
     * 判断两个卡是否在同一节点内
@@ -118,11 +118,12 @@ namespace dtb {
 
         try {
             std::ofstream file_save_data(file_path);
-            for (auto const &x: data)
+            for (auto const &x: data) {
                 for (int i = 0; i < col_len; ++i) {
                     file_save_data << x << " ";
                 }
-            file_save_data << '\n';
+                file_save_data << '\n';
+            }
             file_save_data.close();
         } catch (std::ios_base::failure &e) {
             std::cout << "write result to file failed," << e.what() << std::endl;

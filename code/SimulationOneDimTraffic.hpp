@@ -18,7 +18,7 @@ namespace dtb {
          * @param argc  mpi参数
          * @param argv  mpi参数
          */
-        virtual void compute_simulation_traffic(int argc, char **argv);
+        virtual void compute_simulation_traffic();
 
 
         SimulationOneDimTraffic(int argc, char **argv);
@@ -29,7 +29,7 @@ namespace dtb {
     };
 
 
-    void SimulationOneDimTraffic::compute_simulation_traffic(int argc, char **argv) {  //可以精确到每张卡到每张卡的发送
+    void SimulationOneDimTraffic::compute_simulation_traffic() {  //可以精确到每张卡到每张卡的发送
         if (pro_rank == master_rank) {  //num-1号负责计算末尾部分与合并所有数据
             MPI_Status st;
             assert(pro_size <= static_cast<int>(GPU_NUM) && pro_size > 1);   //进程的数目要小于等于模拟的卡数
@@ -42,6 +42,7 @@ namespace dtb {
             }
             MPI_Barrier(MPI_COMM_WORLD);        //阻塞等待全部收到
             for (auto i = cal_row_pre_process * (pro_size - 1); i != GPU_NUM; ++i) {     //计算最后一部分剩余流量
+                std::cout << i << std::endl;
                 auto offset = (i - cal_row_pre_process * (pro_size - 1)) * GPU_NUM;
                 for (unsigned j = 0; j < GPU_NUM; ++j) {
                     traffic_res[offset + j] = this->sim_traffic_between_two_gpu(i, j);
@@ -66,7 +67,7 @@ namespace dtb {
             }
             MPI_Send(&traffic_result[0], static_cast<int>(traffic_result.size()), MPI_UNSIGNED, master_rank, 0,
                      MPI_COMM_WORLD);
-            printf("process %d ", pro_size);
+            printf("process %d ", pro_rank);
             t.print_time();
             MPI_Barrier(MPI_COMM_WORLD);        //阻塞等待全部收到,注意子线程也要加上同步
         }

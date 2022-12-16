@@ -31,7 +31,7 @@ namespace dtb {
         * @param argc  mpi参数
         * @param argv  mpi参数
         */
-        void compute_simulation_traffic(int argc, char **argv) override;
+        void compute_simulation_traffic() override;
 
         SimulationHighDimTraffic() = default;
     };
@@ -67,7 +67,7 @@ namespace dtb {
         }
     }
 
-    void SimulationHighDimTraffic::compute_simulation_traffic(int argc, char **argv) {
+    void SimulationHighDimTraffic::compute_simulation_traffic() {
         MPI_Init(&argc, &argv);
         int rank, num;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);

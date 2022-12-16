@@ -74,8 +74,15 @@ namespace dtb {
          * 对于每一个体素需要模拟的神经元数目
          */
         std::array<unsigned long, POP_NUM> pops_sam_range;
-        static std::shared_ptr<LoadData> load_data_ptr; //需要load_data实例加载数据
+
+        static const std::shared_ptr<LoadData> load_data_ptr;//需要load_data实例加载数据
     };
+
+    const std::shared_ptr<LoadData>   SimulationTrafficUtils::load_data_ptr = LoadData::getLoadDataInstance();
+
+
+//
+//    std::shared_ptr<LoadData> const load_data_ptr =
 
     unsigned long SimulationTrafficUtils::sim_traffic_between_two_gpu(const unsigned int &gpu_out_idx,
                                                                       const unsigned int &gpu_in_idx) {
