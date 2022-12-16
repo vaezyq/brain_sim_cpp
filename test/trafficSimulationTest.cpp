@@ -12,14 +12,14 @@
 #include <algorithm>
 #include "../code/SimulationTrafficUtils.hpp"
 #include "../code/SimulationOneDimTraffic.hpp"
-#include "../code/SimulationHighDimtraffic.hpp"
+//#include "../code/SimulationHighDimtraffic.hpp"
 
 using namespace std;
 
 int main(int argc, char **argv) {
 
 
-    int flag = 4;
+    int flag = 3;
 
 
     if (flag == 1) {    //测试计算gpu to gpu的流量是否与真实模拟traffic.txt符合
@@ -61,14 +61,14 @@ int main(int argc, char **argv) {
     } else if (flag == 3) {
         dtb::SimulationOneDimTraffic sod(argc, argv);
         sod.show_basic_information();
-        sod.compute_simulation_traffic();
-    } else if (flag == 4) {
-        dtb::SimulationHighDimTraffic shd(argc, argv);
-        sod.show_basic_information();
+//        sod.mpi_comm_test();
         sod.compute_simulation_traffic();
     }
-
-
+//    else if (flag == 4) {
+//        dtb::SimulationHighDimTraffic shd(argc, argv);
+//        sod.show_basic_information();
+//        sod.compute_simulation_traffic();
+//    }
 
 
 

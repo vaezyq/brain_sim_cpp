@@ -5,19 +5,18 @@
 #include <memory>
 #include "Utils.hpp"
 
-bool flag = false;
-//#if __cplusplus >= 201703L
-#if flag
-#  include <filesystem>
+//bool flag = true;
+////#if __cplusplus >= 201703L
+//#if flag
+//
+//#else
+//#  include <experimental/filesystem>
+//namespace fs = std::experimental::filesystem;
+//#endif
+
+# include <filesystem>
 
 namespace fs = std::filesystem;
-#else
-
-#  include <experimental/filesystem>
-
-namespace fs = std::experimental::filesystem;
-#endif
-
 
 namespace dtb {
     constexpr unsigned int GPU_NUM = 2000;        //模拟的GPU的个数
