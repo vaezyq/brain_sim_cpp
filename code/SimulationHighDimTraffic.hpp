@@ -33,7 +33,7 @@ namespace dtb {
         */
         void compute_simulation_traffic() override;
 
-        SimulationHighDimTraffic() = default;
+        SimulationHighDimTraffic(int argc, char **argv);
     };
 
 
@@ -68,16 +68,14 @@ namespace dtb {
     }
 
     void SimulationHighDimTraffic::compute_simulation_traffic() {
-        MPI_Init(&argc, &argv);
-        int rank, num;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &num);
-        if (rank == (num - 1)) {  //num-1号负责计算末尾部分与合并所有数据
+
+        if (pro_rank == master_rank) {  //num-1号负责计算末尾部分与合并所有数据
             MPI_Status st;
-            assert(num <= static_cast<int>(GPU_NUM) && num > 1);   //进程的数目要小于等于模拟的卡数
-            unsigned int cal_row_pre_process = GPU_NUM / (num - 1);
+            assert(pro_size <= (static_cast<int>(GPU_NUM) - 1) && pro_size > 1);   //进程的数目要小于等于模拟的卡数
+            unsigned int cal_row_pre_process = GPU_NUM / (pro_size - 1);
+            //todo: 这里是否需要更换为unsigned long
             std::array<unsigned int, ((GPU_NUM * dimensions) << 1)> output_input_traffic{};
-            for (int i = 0; i < num - 1; ++i) {
+            for (int i = 0; i < master_rank; ++i) {
                 std::array<unsigned int, GPU_NUM * 2 * dimensions> temp_traffic{};
                 MPI_Recv(&temp_traffic[0], static_cast<int>  (GPU_NUM * 2 * dimensions), MPI_UNSIGNED, i,
                          MPI_ANY_TAG, MPI_COMM_WORLD, &st);
@@ -89,7 +87,7 @@ namespace dtb {
 
             std::vector<unsigned> recv_lists(GPU_NUM, 0);
             std::generate(recv_lists.begin(), recv_lists.end(), [i = 1]()mutable { return i++; });
-            for (auto i = cal_row_pre_process * (num - 1); i != GPU_NUM; ++i) {     //计算最后一部分剩余流量
+            for (auto i = cal_row_pre_process * (pro_size - 1); i != GPU_NUM; ++i) {     //计算最后一部分剩余流量
 
                 simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
 
@@ -104,8 +102,8 @@ namespace dtb {
             write_vector_data_file(output_input_traffic, traffic_path, dimensions << 1);
         } else {   //辅进程负责计算前面各项
             TimePrint t;    //获取计算时间
-            unsigned cal_row_pre_process = GPU_NUM / (num - 1);
-            unsigned start_gpu_idx = cal_row_pre_process * rank;
+            unsigned cal_row_pre_process = GPU_NUM / (pro_size - 1);
+            unsigned start_gpu_idx = cal_row_pre_process * pro_rank;
             unsigned end_gpu_idx = start_gpu_idx + cal_row_pre_process;
 
             // 这里是否需要初始化
@@ -119,12 +117,15 @@ namespace dtb {
 //                                                                   *forward_idx);
                 simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
             }
-            MPI_Send(&output_input_traffic[0], static_cast<int>(GPU_NUM * 2 * dimensions), MPI_UNSIGNED, num - 1, 0,
+            MPI_Send(&output_input_traffic[0], static_cast<int>(GPU_NUM * 2 * dimensions), MPI_UNSIGNED, master_rank, 0,
                      MPI_COMM_WORLD);
-            printf("process %d ", rank);
+            printf("process %d ", pro_rank);
             t.print_time();
             MPI_Barrier(MPI_COMM_WORLD);        //阻塞等待全部收到,注意子线程也要加上同步
         }
+    }
+
+    SimulationHighDimTraffic::SimulationHighDimTraffic(int argc, char **argv) : SimulationOneDimTraffic(argc, argv) {
     }
 
 

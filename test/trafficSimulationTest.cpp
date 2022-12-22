@@ -12,25 +12,26 @@
 #include <algorithm>
 #include "../code/SimulationTrafficUtils.hpp"
 #include "../code/SimulationOneDimTraffic.hpp"
-//#include "../code/SimulationHighDimtraffic.hpp"
+#include "../code/SimulationHighDimTraffic.hpp"
 
 using namespace std;
 
 int main(int argc, char **argv) {
 
 
-    int flag = 3;
+    int flag = 4;
 
 
     if (flag == 1) {    //测试计算gpu to gpu的流量是否与真实模拟traffic.txt符合
         std::vector<std::vector<double> > traffic_res(dtb::GPU_NUM, std::vector<double>(dtb::GPU_NUM, 0));
         dtb::LoadData::load_one_dim_traffic_result(traffic_res);
+
 //        double res = 0;
         dtb::SimulationTrafficUtils stu;
-        for (int i = 0; i < 100; ++i) {
-            double traffic = stu.sim_traffic_between_two_gpu(100, i);
+        for (int i = 0; i < 2000; ++i) {
+            double traffic = stu.sim_traffic_between_two_gpu(1999, i);
 //            res += traffic;
-            cout << i << " " << traffic << " " << traffic_res[100][i] << endl;
+            cout << i << " " << traffic << " " << traffic_res[1999][i] << endl;
         }
     } else if (flag == 2) {
         dtb::SimulationTrafficUtils stu;
@@ -63,7 +64,13 @@ int main(int argc, char **argv) {
         sod.show_basic_information();
 //        sod.mpi_comm_test();
         sod.compute_simulation_traffic();
+    } else if (flag == 4) {  // 验证通过，注意路由表不要是错误的
+        dtb::SimulationHighDimTraffic shd(argc, argv);
+        shd.show_basic_information();
+        shd.compute_simulation_traffic();
     }
+
+
 //    else if (flag == 4) {
 //        dtb::SimulationHighDimTraffic shd(argc, argv);
 //        sod.show_basic_information();

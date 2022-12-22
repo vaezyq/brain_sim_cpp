@@ -33,29 +33,30 @@ namespace dtb {
     void SimulationOneDimTraffic::compute_simulation_traffic() {  //可以精确到每张卡到每张卡的发送
         if (pro_rank == master_rank) {  //num-1号负责计算末尾部分与合并所有数据
             MPI_Status st;
-            assert(pro_size <= static_cast<int>(GPU_NUM) && pro_size > 1);   //进程的数目要小于等于模拟的卡数
+            assert(pro_size <= (static_cast<int>(GPU_NUM) - 1) && pro_size > 1);   //进程的数目要小于等于模拟的卡数
             unsigned int cal_row_pre_process = GPU_NUM / (pro_size - 1);
             unsigned int len_pre_process = cal_row_pre_process * GPU_NUM;
             std::vector<unsigned int, std::allocator<unsigned int> > traffic_res(GPU_NUM * GPU_NUM);
             for (int i = 0; i < master_rank; ++i) {
-                MPI_Recv(&traffic_res[i * cal_row_pre_process], static_cast<int>  (len_pre_process), MPI_UNSIGNED, i,
+                MPI_Recv(&traffic_res[i * len_pre_process], static_cast<int>  (len_pre_process), MPI_UNSIGNED, i,
                          MPI_ANY_TAG, MPI_COMM_WORLD, &st);
             }
             MPI_Barrier(MPI_COMM_WORLD);        //阻塞等待全部收到
             for (auto i = cal_row_pre_process * (pro_size - 1); i != GPU_NUM; ++i) {     //计算最后一部分剩余流量
                 std::cout << i << "*" << std::endl;
-                auto offset = (i - cal_row_pre_process * (pro_size - 1)) * GPU_NUM;
+                auto offset = i * GPU_NUM;
                 for (unsigned j = 0; j < GPU_NUM; ++j) {
-//                    traffic_res[offset + j] = this->sim_traffic_between_two_gpu(i, j);
-                    traffic_res[offset + j] = 1;
+                    traffic_res[offset + j] = this->sim_traffic_between_two_gpu(i, j);
                 }
             }
 
+//            for (int i = 0; i < GPU_NUM; ++i) {
+//                std::cout << traffic_res[i] << " ";
+//            }
             //array类型不能定义，因为这里含有GPU_NUM*GPU_NUM个元素，因为array含有的元素个数是固定的，因此其会将空间直接开辟在栈上
             // 栈内存当定义数组元素过多时就会溢出，如果想要使用array可以用智能指针管理一个定长array,这样就可以把array开辟在堆上
             write_vector_data_file(traffic_res, traffic_path, GPU_NUM);
-
-
+            std::cout << "simulation traffic finished" << std::endl;
         } else {   //辅进程负责计算前面各项
             TimePrint t;    //获取计算时间
             unsigned cal_row_pre_process = GPU_NUM / (pro_size - 1);
@@ -66,8 +67,7 @@ namespace dtb {
             for (auto i = start_gpu_idx; i != end_gpu_idx; ++i) {
                 auto offset = (i - start_gpu_idx) * GPU_NUM;
                 for (unsigned j = 0; j < GPU_NUM; ++j) {
-//                    traffic_result[offset + j] = this->sim_traffic_between_two_gpu(i, j);
-                    traffic_result[offset + j] = 1;
+                    traffic_result[offset + j] = this->sim_traffic_between_two_gpu(i, j);
                 }
             }
             MPI_Send(&traffic_result[0], static_cast<int>(traffic_result.size()), MPI_UNSIGNED, master_rank, 0,
@@ -86,18 +86,17 @@ namespace dtb {
             std::vector<int> rank_num(pro_size, 0);
             for (int i = 0; i < master_rank; ++i) {
                 MPI_Recv(&rank_num[i], 1, MPI_INT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &st);
+                std::cout << "received " << rank_num[i] << " from rank: " << i << std::endl;
             }
             MPI_Barrier(MPI_COMM_WORLD);
             rank_num[master_rank] = master_rank;
             std::cout << "communication finished" << std::endl;
-            std::cout << "rank num accumulate: " << std::accumulate(rank_num.begin(), rank_num.end(), 0);
+            std::cout << "rank num accumulate: " << std::accumulate(rank_num.begin(), rank_num.end(), 0) << std::endl;
         } else {
             int num = pro_rank;
             MPI_Send(&num, 1, MPI_INT, master_rank, 0, MPI_COMM_WORLD);
             MPI_Barrier(MPI_COMM_WORLD);
         }
-
-
     }
 
 

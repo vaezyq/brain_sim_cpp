@@ -23,7 +23,8 @@ namespace dtb {
             * @return  输出gpu到输入gpu之间的p2p流量
             */
         static unsigned long
-        sim_traffic_between_two_gpu(const unsigned &gpu_out_idx, const unsigned &gpu_in_idx);  //验证正确，计算指定两个卡
+        sim_traffic_between_two_gpu(const unsigned &gpu_out_idx, const unsigned &gpu_in_idx,
+                                    const std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());  //验证正确，计算指定两个卡
 
         /*!
          * 计算单个gpu到一个组的流量
@@ -32,7 +33,8 @@ namespace dtb {
          * @return 输出gpu到输入gpu组之间的p2p流量
          */
         static unsigned long
-        sim_traffic_between_gpu_group(const unsigned &gpu_out_idx, const std::vector<unsigned> &gpu_in_list);
+        sim_traffic_between_gpu_group(const unsigned &gpu_out_idx, const std::vector<unsigned> &gpu_in_list,
+                                      const std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());
 
 
         /*!
@@ -61,6 +63,11 @@ namespace dtb {
 
         SimulationTrafficUtils();
 
+
+        unsigned long compute_pop_traffic(unsigned send_idx, std::vector<unsigned> changed_pop_lists_in_send,
+                                          std::vector<unsigned> recv_idx_lists,
+                                          std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());
+
     protected:
         /*!
             * 得到采样次数
@@ -68,7 +75,8 @@ namespace dtb {
             * @param gpu_in_idx 输入卡编号
             * @return 返回采样次数
             */
-        static unsigned int get_sample_times(const int &out_pop_idx, const unsigned &gpu_in_idx);
+        static unsigned int get_sample_times(const int &out_pop_idx, const unsigned &gpu_in_idx,
+                                             const std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());
 
         /*!
          * 对于每一个体素需要模拟的神经元数目
@@ -85,13 +93,14 @@ namespace dtb {
 //    std::shared_ptr<LoadData> const load_data_ptr =
 
     unsigned long SimulationTrafficUtils::sim_traffic_between_two_gpu(const unsigned int &gpu_out_idx,
-                                                                      const unsigned int &gpu_in_idx) {
+                                                                      const unsigned int &gpu_in_idx,
+                                                                      const std::vector<std::unordered_map<int, double> > &map_table) {
         unsigned long traffic_gpu_to_gpu{0};
 
         unsigned int sample_times{0}, sample_range{0};
 
-        for (auto [k_out, v_out]: load_data_ptr->getMapTable()[gpu_out_idx]) {
-            sample_times = get_sample_times(k_out, gpu_in_idx);
+        for (auto [k_out, v_out]: map_table[gpu_out_idx]) {
+            sample_times = get_sample_times(k_out, gpu_in_idx, map_table);
             sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out);
 //            printf("sample_times %d, sample range %d, gpu_in_idx %d\n", sample_times, sample_range, gpu_in_idx);
 //            if (sample_times != 0) {
@@ -106,9 +115,6 @@ namespace dtb {
 ////                printf("gpu_in_idx %d\n")
 ////                sample_range = static_cast<unsigned int> (pops_sam_range[k_out] * v_out);
 //            }
-
-            std::chrono::time_point<std::chrono::system_clock> start, end;
-            start = std::chrono::system_clock::now();
             if (sample_times != 0) {
                 if ((sample_range << 2) < sample_times) {
                     traffic_gpu_to_gpu += sample_range;
@@ -121,15 +127,17 @@ namespace dtb {
     }
 
     unsigned long SimulationTrafficUtils::sim_traffic_between_gpu_group(const unsigned int &gpu_out_idx,
-                                                                        const std::vector<unsigned int> &gpu_in_list) {
+                                                                        const std::vector<unsigned int> &gpu_in_list,
+                                                                        const std::vector<std::unordered_map<int, double> > &map_table) {
 
         unsigned long traffic_gpu_to_group{0};
 
-        for (auto [k_out, v_out]: load_data_ptr->getMapTable()[gpu_out_idx]) {
+        for (auto [k_out, v_out]: map_table[gpu_out_idx]) {
             unsigned sample_times{0}, sample_range{0};
             for (auto const &gpu_in_idx: gpu_in_list) {
                 sample_times += get_sample_times(k_out,
-                                                 gpu_in_idx);     //这里每次get_sample_times都做了double到int的转换，有可能损失较大一些
+                                                 gpu_in_idx,
+                                                 map_table);     //这里每次get_sample_times都做了double到int的转换，有可能损失较大一些
             }
             sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out);
 
@@ -152,11 +160,12 @@ namespace dtb {
         }
     }
 
-    unsigned int SimulationTrafficUtils::get_sample_times(const int &out_pop_idx, const unsigned int &gpu_in_idx) {
+    unsigned int SimulationTrafficUtils::get_sample_times(const int &out_pop_idx, const unsigned int &gpu_in_idx,
+                                                          const std::vector<std::unordered_map<int, double> > &map_table) {
         double conn_number_estimate{0.0};
         unsigned long long key_temp{0};
         std::vector<double> traffic_src_to_dst;
-        for (auto &[k_in, v_in]: load_data_ptr->getMapTable()[gpu_in_idx]) {
+        for (auto &[k_in, v_in]: map_table[gpu_in_idx]) {
 
             //todo:  这里是unsigned int,如果直接做乘法会出现精度损失，所以这里都要做转型(或许有更快的方法)
             key_temp = static_cast<unsigned long> ( k_in) * (POP_NUM) + (out_pop_idx);
@@ -248,7 +257,33 @@ namespace dtb {
         }
     }
 
+    unsigned long SimulationTrafficUtils::compute_pop_traffic(unsigned int send_idx,
+                                                              std::vector<unsigned int> changed_pop_lists_in_send,
+                                                              std::vector<unsigned int> recv_idx_lists,
+                                                              std::vector<std::unordered_map<int, double>> &map_table) {
 
+        unsigned long traffic_gpu_to_group{0};
+        for (auto it = changed_pop_lists_in_send.begin(); it != changed_pop_lists_in_send.end(); ++it) {
+
+            unsigned sample_times{0}, sample_range{0};
+            for (auto const &gpu_in_idx: recv_idx_lists) {
+                sample_times += get_sample_times(*it, gpu_in_idx,
+                                                 map_table);     //这里每次get_sample_times都做了double到int的转换，有可能损失较大一些
+            }
+            sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[*it] *
+                                                      map_table[send_idx][*it]);
+
+            if (sample_times != 0) {
+                if ((sample_range << 2) < sample_times) {
+                    traffic_gpu_to_group += sample_range;
+                } else {
+                    traffic_gpu_to_group += sample(sample_range, sample_times);
+                }
+            }
+
+        }
+        return traffic_gpu_to_group;
+    }
 }
 
 

@@ -6,13 +6,11 @@
 #include "Utils.hpp"
 
 //bool flag = true;
-////#if __cplusplus >= 201703L
-//#if flag
+
+
+//#include <experimental/filesystem>
 //
-//#else
-//#  include <experimental/filesystem>
 //namespace fs = std::experimental::filesystem;
-//#endif
 
 # include <filesystem>
 
@@ -31,20 +29,22 @@ namespace dtb {
         const std::string tables_path = project_root + "/tables";       //表数据路径
         const std::string route_path = tables_path + "/route_tables";     //路由表路径
         const std::string conn_path = tables_path + "/conn_tables";     //连接概率表路径
-        const std::string map_path = tables_path + "/map_tables";     //连接概率表路径
+        const std::string map_path = tables_path + "/map_tables" + "/" + "map_" + std::to_string(GPU_NUM);     //连接概率表路径
         const std::string traffic_tables_path =
-                tables_path + "/traffic_tables/traffic_" + std::to_string(GPU_NUM) + "/";//流量表路径
+                tables_path + "/traffic_tables/traffic_" + std::to_string(GPU_NUM) + "/" + "2_dim";//流量表路径
 
     public:    //文件路径
         const std::string route_file_name = "route_default_40_50.txt";   //路由表文件名
 
         const std::string conn_file_name = "conn_dict_int.txt";     //连接概率表文件名
 
-        const std::string map_file_name = "map.txt";        //map表文件名
+        const std::string map_file_name = "map_2000_after_size_balance.txt";        //map表文件名
 
         const std::string size_file_name = "size.txt";   //size表文件名
 
         const std::string degree_file_name = "degree.txt";    //degree表文件名
+
+        const std::string traffic_file_name = "traffic_table_out_in_2_dim_map_2000_balance_size_map.txt";       //traffic文件名
 
     public:
         /*!

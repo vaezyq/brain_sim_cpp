@@ -75,14 +75,17 @@ namespace dtb {
 
 
     /*!
-     * 加载流量数据，并计算最大值、最小值、平均值
-     * @tparam size  目前计算的流量表大小
-     * @param traffic_file_path  流量文件路径
-     * @return 返回读取的流量数据
+     *
+     * @tparam T
+     * @param traffic_output_iter_map
+     * @param traffic_input_iter_map
+     * @param traffic_file_path
+     * @param dimension
      */
-    template<size_t size>
+    template<typename T>
     void
-    load_traffic_result(std::array<unsigned long, size> &traffic_table, const std::string &traffic_file_path);
+    load_traffic_for_gen_map(T &traffic_output_iter_map, T &traffic_input_iter_map,
+                             const std::string &traffic_file_path, const unsigned dimension);
 
 
     /*!
@@ -92,7 +95,11 @@ namespace dtb {
      * @return
      */
     template<typename T, size_t size>
-    const std::array<T, size> &argsort(const std::array<T, size> &traffic_table);
+    std::unique_ptr<std::array<T, size>> argsort(const std::array<T, size> &traffic_table);
+
+    template<typename T>
+    void
+    write_map_data_to_file(const T &data, std::string const &file_path);
 
 
     template<typename T, size_t N>
@@ -115,14 +122,15 @@ namespace dtb {
 
     template<typename T>
     void write_vector_data_file(const T &data, std::string const &file_path, unsigned col_len) {
-
         try {
             std::ofstream file_save_data(file_path);
+            int idx = 0;
             for (auto const &x: data) {
-                for (int i = 0; i < col_len; ++i) {
-                    file_save_data << x << " ";
+                file_save_data << x << " ";
+                idx++;
+                if (idx % col_len == 0) {
+                    file_save_data << '\n';
                 }
-                file_save_data << '\n';
             }
             file_save_data.close();
         } catch (std::ios_base::failure &e) {
@@ -144,7 +152,7 @@ namespace dtb {
     }
 
     template<size_t size>
-    void print_max_min_aver_traffic_info(const std::array<unsigned long, size> &traffic_table) {
+    void print_max_min_aver_traffic_info(const std::array<long, size> &traffic_table) {
 
         auto max_iter = std::max_element(traffic_table.cbegin(), traffic_table.cend());
         auto min_iter = std::min_element(traffic_table.cbegin(), traffic_table.cend());
@@ -154,25 +162,37 @@ namespace dtb {
         std::cout << "min traffic: " << *min_iter << " ,min traffic gpu idx: "
                   << std::distance(traffic_table.begin(), min_iter) << std::endl;
 
-        double average = std::accumulate(traffic_table.begin(), traffic_table.end(), 0) / size;
+        //这里要使用long long类型，否则相加会出现溢出
+        auto average = std::accumulate(traffic_table.begin(), traffic_table.end(), 0ULL) / size;
         std::cout << "average traffic: " << average << std::endl;
     }
 
-    template<size_t size>
+    template<typename T>
     void
-    load_traffic_result(std::array<unsigned long, size> &traffic_table, const std::string &traffic_file_path) {
+    load_traffic_for_gen_map(T &traffic_output_iter_map, T &traffic_input_iter_map,
+                             const std::string &traffic_file_path, const unsigned dimension) {
         try {
             std::ifstream traffic_table_file;
             std::string line;
             traffic_table_file.open(traffic_file_path);
+            traffic_table_file.exceptions(std::ifstream::badbit);
             int idx = 0;
             while (getline(traffic_table_file, line)) {
-                std::stringstream s(line);//将字符串line放入到输入输出流ss中
-                s >> traffic_table[idx];
+                std::string item;
+                std::stringstream text_stream(line);
+                int i = 0;
+                while (std::getline(text_stream, item, ' ')) {
+//                    std::cout << item << std::endl;
+                    if (i++ < dimension) {
+//                        std::cout << std::stoul(item) << std::endl;
+                        traffic_output_iter_map[idx] += stoul(item);
+                    } else {
+                        traffic_input_iter_map[idx] += stoul(item);
+                    }
+                }
                 idx++;
             }
             traffic_table_file.close();
-            print_max_min_aver_traffic_info(traffic_table);
         } catch (std::ios_base::failure &e) {
             std::cout << "load traffic result file failed," << e.what() << std::endl;
             std::terminate();
@@ -180,14 +200,31 @@ namespace dtb {
     }
 
     template<typename T, size_t size>
-    const std::array<T, size> &argsort(const std::array<T, size> &traffic_table) {
-
-        std::array<T, size> indices;
-        std::iota(indices.begin(), indices.end(), 0);
-        std::sort(indices.begin(), indices.end(), [&traffic_table](int left, int right) {
+    std::unique_ptr<std::array<T, size>> argsort(const std::array<T, size> &traffic_table) {
+        auto res_ptr = std::make_unique<std::array<T, size>>(std::array<T, size>());
+        std::iota(res_ptr->begin(), res_ptr->end(), 0);
+        std::sort(res_ptr->begin(), res_ptr->end(), [&traffic_table](int left, int right) {
             return traffic_table[left] < traffic_table[right];
         });
-        return indices;
+        return res_ptr;
+    }
+
+    template<typename T>
+    void
+    write_map_data_to_file(const T &data, std::string const &file_path) {
+        try {
+            std::ofstream file_save_data(file_path);
+            for (auto it = data.begin(); it != data.end(); ++it) {
+                for (auto const &pop_pair: *it) {
+                    file_save_data << pop_pair.first << " " << pop_pair.second << " ";
+                }
+                file_save_data << "\n";
+            }
+            file_save_data.close();
+        } catch (std::ios_base::failure &e) {
+            std::cout << "write result to file failed," << e.what() << std::endl;
+            std::terminate();
+        }
     }
 
 }
