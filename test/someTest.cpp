@@ -7,18 +7,29 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
-#include "../code/Utils.hpp"
+
 
 using namespace std;
 
 
 class A {
 public:
-    A(int argc, char **argv) {
-
-    }
+    virtual void func() {}
 
 };
+
+class C {
+public:
+
+};
+
+class B : public A ,public C{
+public:
+    void func() override {
+        A::func();
+    }
+};
+
 
 struct IoFail : public std::ios_base::failure {
     const char *what() const noexcept override //<---**** Stared statement.
@@ -39,6 +50,7 @@ bool is_in_changed_gpu_lists(std::vector<unsigned int> const &gpu_idxs) {
 }
 
 int main() {
+
 
     array<int, 5> vec{1, 2, 3, 4, 5};
     std::sort(vec.begin(), vec.end(), [](auto &a, auto &b) {

@@ -4,7 +4,6 @@
 #pragma once
 
 #include <numeric>
-#include <mpi.h>
 #include "TimePrint.hpp"
 #include <string>
 #include "LoadData.hpp"
@@ -22,9 +21,9 @@ namespace dtb {
             * @param gpu_in_idx    输入gpu编号
             * @return  输出gpu到输入gpu之间的p2p流量
             */
-        static unsigned long
-        sim_traffic_between_two_gpu(const unsigned &gpu_out_idx, const unsigned &gpu_in_idx,
-                                    const std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());  //验证正确，计算指定两个卡
+        static traffic_size_type
+        sim_traffic_between_two_gpu(const gpu_size_type &gpu_out_idx, const gpu_size_type &gpu_in_idx,
+                                    const std::vector<std::unordered_map<gpu_size_type, double> > &map_table = load_data_ptr->getMapTable());  //验证正确，计算指定两个卡
 
         /*!
          * 计算单个gpu到一个组的流量
@@ -32,9 +31,9 @@ namespace dtb {
          * @param gpu_in_list 输入gpu组编号
          * @return 输出gpu到输入gpu组之间的p2p流量
          */
-        static unsigned long
-        sim_traffic_between_gpu_group(const unsigned &gpu_out_idx, const std::vector<unsigned> &gpu_in_list,
-                                      const std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());
+        static traffic_size_type
+        sim_traffic_between_gpu_group(const gpu_size_type &gpu_out_idx, const std::vector<gpu_size_type> &gpu_in_list,
+                                      const std::vector<std::unordered_map<gpu_size_type, double> > &map_table = load_data_ptr->getMapTable());
 
 
         /*!
@@ -48,8 +47,8 @@ namespace dtb {
          * @param recv_idxs 需要计算的列表lists
          * @return 返回对recv_idxs计算的并包特性
          */
-        static std::unique_ptr<std::unordered_map<unsigned, std::vector<unsigned >>>
-        get_list_send_by_route_table(const unsigned &send_idx, const std::vector<unsigned> &recv_idxs);
+        static std::unique_ptr<std::unordered_map<gpu_size_type, std::vector<gpu_size_type >>>
+        get_list_send_by_route_table(const gpu_size_type &send_idx, const std::vector<gpu_size_type> &recv_idxs);
 
 
         /*!
@@ -58,15 +57,18 @@ namespace dtb {
         * @param send_idx
         * @param output_input_traffic
         */
-        void simulate_2_dim_input_output_traffic_per_gpu_no_recursive(const unsigned &send_idx, std::array<unsigned,
-                GPU_NUM << 2> &output_input_traffic);
+        void simulate_2_dim_input_output_traffic_per_gpu_no_recursive(const gpu_size_type &send_idx,
+                                                                      std::array<traffic_size_type,
+                                                                              GPU_NUM
+                                                                                      << 2> &output_input_traffic);
 
         SimulationTrafficUtils();
 
 
-        unsigned long compute_pop_traffic(unsigned send_idx, std::vector<unsigned> changed_pop_lists_in_send,
-                                          std::vector<unsigned> recv_idx_lists,
-                                          std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());
+        traffic_size_type
+        compute_pop_traffic(const gpu_size_type &send_idx, const std::vector<gpu_size_type> &changed_pop_lists_in_send,
+                            const std::vector<gpu_size_type> &recv_idx_lists,
+                            std::vector<std::unordered_map<gpu_size_type, double> > &map_table = load_data_ptr->getMapTable());
 
     protected:
         /*!
@@ -75,13 +77,13 @@ namespace dtb {
             * @param gpu_in_idx 输入卡编号
             * @return 返回采样次数
             */
-        static unsigned int get_sample_times(const int &out_pop_idx, const unsigned &gpu_in_idx,
-                                             const std::vector<std::unordered_map<int, double> > &map_table = load_data_ptr->getMapTable());
+        static traffic_size_type get_sample_times(const pop_size_type &out_pop_idx, const gpu_size_type &gpu_in_idx,
+                                                  const std::vector<std::unordered_map<gpu_size_type, double> > &map_table = load_data_ptr->getMapTable());
 
         /*!
          * 对于每一个体素需要模拟的神经元数目
          */
-        std::array<unsigned long, POP_NUM> pops_sam_range;
+        std::array<traffic_size_type, POP_NUM> pops_sam_range;
 
         static const std::shared_ptr<LoadData> load_data_ptr;//需要load_data实例加载数据
     };
@@ -92,17 +94,17 @@ namespace dtb {
 //
 //    std::shared_ptr<LoadData> const load_data_ptr =
 
-    unsigned long SimulationTrafficUtils::sim_traffic_between_two_gpu(const unsigned int &gpu_out_idx,
-                                                                      const unsigned int &gpu_in_idx,
-                                                                      const std::vector<std::unordered_map<int, double> > &map_table) {
-        unsigned long traffic_gpu_to_gpu{0};
+    traffic_size_type SimulationTrafficUtils::sim_traffic_between_two_gpu(const gpu_size_type &gpu_out_idx,
+                                                                          const gpu_size_type &gpu_in_idx,
+                                                                          const std::vector<std::unordered_map<gpu_size_type, double> > &map_table) {
+        traffic_size_type traffic_gpu_to_gpu{0};
 
-        unsigned int sample_times{0}, sample_range{0};
+        traffic_size_type sample_times{0}, sample_range{0};
 
         for (auto [k_out, v_out]: map_table[gpu_out_idx]) {
             sample_times = get_sample_times(k_out, gpu_in_idx, map_table);
-            sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out);
-//            printf("sample_times %d, sample range %d, gpu_in_idx %d\n", sample_times, sample_range, gpu_in_idx);
+            sample_range = NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out;
+//            printf("sample_times %lf, sample range %lf, gpu_in_idx %d\n", sample_times, sample_range, gpu_in_idx);
 //            if (sample_times != 0) {
 //                printf("sample_times %d, sample range %d, gpu_in_idx %d gpu_out_idx %d\n", sample_times, sample_range,
 //                       gpu_in_idx, gpu_out_idx);
@@ -116,7 +118,7 @@ namespace dtb {
 ////                sample_range = static_cast<unsigned int> (pops_sam_range[k_out] * v_out);
 //            }
             if (sample_times != 0) {
-                if ((sample_range << 2) < sample_times) {
+                if ((sample_range * 4) < sample_times) {
                     traffic_gpu_to_gpu += sample_range;
                 } else {
                     traffic_gpu_to_gpu += sample(sample_range, sample_times);
@@ -126,14 +128,14 @@ namespace dtb {
         return traffic_gpu_to_gpu;
     }
 
-    unsigned long SimulationTrafficUtils::sim_traffic_between_gpu_group(const unsigned int &gpu_out_idx,
-                                                                        const std::vector<unsigned int> &gpu_in_list,
-                                                                        const std::vector<std::unordered_map<int, double> > &map_table) {
+    traffic_size_type SimulationTrafficUtils::sim_traffic_between_gpu_group(const gpu_size_type &gpu_out_idx,
+                                                                            const std::vector<gpu_size_type> &gpu_in_list,
+                                                                            const std::vector<std::unordered_map<gpu_size_type, double> > &map_table) {
 
-        unsigned long traffic_gpu_to_group{0};
+        traffic_size_type traffic_gpu_to_group{0};
 
         for (auto [k_out, v_out]: map_table[gpu_out_idx]) {
-            unsigned sample_times{0}, sample_range{0};
+            traffic_size_type sample_times{0}, sample_range{0};
             for (auto const &gpu_in_idx: gpu_in_list) {
                 sample_times += get_sample_times(k_out,
                                                  gpu_in_idx,
@@ -142,7 +144,7 @@ namespace dtb {
             sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[k_out] * v_out);
 
             if (sample_times != 0) {
-                if ((sample_range << 2) < sample_times) {
+                if ((sample_range * 2) < sample_times) {
                     traffic_gpu_to_group += sample_range;
                 } else {
                     traffic_gpu_to_group += sample(sample_range, sample_times);
@@ -160,11 +162,12 @@ namespace dtb {
         }
     }
 
-    unsigned int SimulationTrafficUtils::get_sample_times(const int &out_pop_idx, const unsigned int &gpu_in_idx,
-                                                          const std::vector<std::unordered_map<int, double> > &map_table) {
+    traffic_size_type
+    SimulationTrafficUtils::get_sample_times(const gpu_size_type &out_pop_idx, const gpu_size_type &gpu_in_idx,
+                                             const std::vector<std::unordered_map<gpu_size_type, double> > &map_table) {
         double conn_number_estimate{0.0};
-        unsigned long long key_temp{0};
-        std::vector<double> traffic_src_to_dst;
+        double key_temp{0};
+        std::vector<traffic_size_type> traffic_src_to_dst;
         for (auto &[k_in, v_in]: map_table[gpu_in_idx]) {
 
             //todo:  这里是unsigned int,如果直接做乘法会出现精度损失，所以这里都要做转型(或许有更快的方法)
@@ -183,12 +186,12 @@ namespace dtb {
         return static_cast<unsigned int>(std::accumulate(traffic_src_to_dst.begin(), traffic_src_to_dst.end(), 0.0));
     }
 
-    std::unique_ptr<std::unordered_map<unsigned, std::vector<unsigned >>>
-    SimulationTrafficUtils::get_list_send_by_route_table(const unsigned int &send_idx,
-                                                         const std::vector<unsigned int> &recv_idxs) {
+    std::unique_ptr<std::unordered_map<gpu_size_type, std::vector<gpu_size_type >>>
+    SimulationTrafficUtils::get_list_send_by_route_table(const gpu_size_type &send_idx,
+                                                         const std::vector<gpu_size_type> &recv_idxs) {
 
-        std::unordered_map<unsigned, std::vector<unsigned >> send_dict;   //用于计算send_idx的最终转发方向
-        for (const unsigned &recv_idx: recv_idxs) { //遍历所有需要计算的进程
+        std::unordered_map<gpu_size_type, std::vector<gpu_size_type >> send_dict;   //用于计算send_idx的最终转发方向
+        for (const gpu_size_type &recv_idx: recv_idxs) { //遍历所有需要计算的进程
             if (recv_idx == send_idx) {    //如果发送进程和接收进程相等则跳过
                 continue;
             } else {
@@ -205,9 +208,8 @@ namespace dtb {
             }
         }
 
-        std::unique_ptr<std::unordered_map<unsigned, std::vector<unsigned >>> send_dict_ptr = std::make_unique<std::unordered_map<unsigned, std::vector<unsigned >>>(
-                std::unordered_map<unsigned, std::vector<unsigned >>());
-
+        std::unique_ptr<std::unordered_map<gpu_size_type, std::vector<gpu_size_type >>> send_dict_ptr = std::make_unique<std::unordered_map<gpu_size_type, std::vector<gpu_size_type >>>(
+                std::unordered_map<gpu_size_type, std::vector<gpu_size_type >>());
 
         std::copy_if(send_dict.begin(), send_dict.end(), std::inserter(*send_dict_ptr, (*send_dict_ptr).end()),
                      [send_idx](decltype(send_dict)::value_type const &kv_pair) {
@@ -222,33 +224,35 @@ namespace dtb {
         generate_sample_range();
     }
 
-    void SimulationTrafficUtils::simulate_2_dim_input_output_traffic_per_gpu_no_recursive(const unsigned int &send_idx,
-                                                                                          std::array<unsigned int,
+    void SimulationTrafficUtils::simulate_2_dim_input_output_traffic_per_gpu_no_recursive(const gpu_size_type &send_idx,
+                                                                                          std::array<traffic_size_type,
                                                                                                   GPU_NUM
                                                                                                           << 2> &output_input_traffic) {
 
         unsigned long dimensions = 2;
         //计算高维流量的非递归版本，主要用于流量验证
-        std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
+        std::vector<gpu_size_type> recv_lists(dtb::GPU_NUM, 0);
         std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
+
+        traffic_size_type temp_traffic{};
 
         auto const &forward_list_send = get_list_send_by_route_table(send_idx, recv_lists);
         for (auto &in_idx_pair: *forward_list_send) {
             if (in_idx_pair.second.size() == 1) {
                 if (!is_in_same_node(send_idx, in_idx_pair.first)) {
-                    auto temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair.first);
+                    temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair.first);
                     output_input_traffic[(send_idx << 2)] += temp_traffic;
                     output_input_traffic[(in_idx_pair.first << 2) + dimensions] += temp_traffic;
                 }
             } else {
-                auto temp_traffic = sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
+                temp_traffic = sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
                 output_input_traffic[send_idx << 2] += temp_traffic;
                 output_input_traffic[(in_idx_pair.first << 2) + dimensions] += temp_traffic;
                 auto forward_sub_idx = get_list_send_by_route_table(in_idx_pair.first,
                                                                     in_idx_pair.second);
                 for (auto &in_idx_pair_1: *forward_sub_idx) {
                     if (!is_in_same_node(send_idx, in_idx_pair_1.first)) {
-                        auto temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first);
+                        temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first);
                         output_input_traffic[(in_idx_pair.first << 2) + 1] += temp_traffic;
                         output_input_traffic[(in_idx_pair_1.first << 2) + 1 + dimensions] += temp_traffic;
                     }
@@ -257,30 +261,27 @@ namespace dtb {
         }
     }
 
-    unsigned long SimulationTrafficUtils::compute_pop_traffic(unsigned int send_idx,
-                                                              std::vector<unsigned int> changed_pop_lists_in_send,
-                                                              std::vector<unsigned int> recv_idx_lists,
-                                                              std::vector<std::unordered_map<int, double>> &map_table) {
+    traffic_size_type SimulationTrafficUtils::compute_pop_traffic(const gpu_size_type &send_idx,
+                                                                  const std::vector<pop_size_type> &changed_pop_lists_in_send,
+                                                                  const std::vector<gpu_size_type> &recv_idx_lists,
+                                                                  std::vector<std::unordered_map<gpu_size_type, double>> &map_table) {
 
-        unsigned long traffic_gpu_to_group{0};
-        for (auto it = changed_pop_lists_in_send.begin(); it != changed_pop_lists_in_send.end(); ++it) {
-
-            unsigned sample_times{0}, sample_range{0};
+        traffic_size_type traffic_gpu_to_group{0};
+        for (pop_size_type pop_idx: changed_pop_lists_in_send) {
+            traffic_size_type sample_times{0}, sample_range{0};
             for (auto const &gpu_in_idx: recv_idx_lists) {
-                sample_times += get_sample_times(*it, gpu_in_idx,
+                sample_times += get_sample_times(pop_idx, gpu_in_idx,
                                                  map_table);     //这里每次get_sample_times都做了double到int的转换，有可能损失较大一些
             }
-            sample_range = static_cast<unsigned int> (NEURON_NUM * load_data_ptr->getSizeTable()[*it] *
-                                                      map_table[send_idx][*it]);
-
+            sample_range = (NEURON_NUM * load_data_ptr->getSizeTable()[pop_idx] *
+                            map_table[send_idx][pop_idx]);
             if (sample_times != 0) {
-                if ((sample_range << 2) < sample_times) {
+                if ((sample_range * 2) < sample_times) {
                     traffic_gpu_to_group += sample_range;
                 } else {
                     traffic_gpu_to_group += sample(sample_range, sample_times);
                 }
             }
-
         }
         return traffic_gpu_to_group;
     }

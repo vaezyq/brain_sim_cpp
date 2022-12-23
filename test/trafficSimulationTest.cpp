@@ -10,8 +10,6 @@
 #include <vector>
 #include <random>
 #include <algorithm>
-#include "../code/SimulationTrafficUtils.hpp"
-#include "../code/SimulationOneDimTraffic.hpp"
 #include "../code/SimulationHighDimTraffic.hpp"
 
 using namespace std;
@@ -19,7 +17,7 @@ using namespace std;
 int main(int argc, char **argv) {
 
 
-    int flag = 4;
+    int flag = 1;
 
 
     if (flag == 1) {    //测试计算gpu to gpu的流量是否与真实模拟traffic.txt符合
@@ -29,9 +27,9 @@ int main(int argc, char **argv) {
 //        double res = 0;
         dtb::SimulationTrafficUtils stu;
         for (int i = 0; i < 2000; ++i) {
-            double traffic = stu.sim_traffic_between_two_gpu(1999, i);
+            double traffic = stu.sim_traffic_between_two_gpu(0, i);
 //            res += traffic;
-            cout << i << " " << traffic << " " << traffic_res[1999][i] << endl;
+            cout << i << " " << traffic << " " << traffic_res[0][i] << endl;
         }
     } else if (flag == 2) {
         dtb::SimulationTrafficUtils stu;
@@ -39,7 +37,7 @@ int main(int argc, char **argv) {
         std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
         std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
 
-        std::array<unsigned int, dtb::GPU_NUM << 2> output_input_traffic{};
+        std::array<dtb::traffic_size_type, dtb::GPU_NUM << 2> output_input_traffic{};
 
         auto const &forward_idx = stu.get_list_send_by_route_table(0, recv_lists);
         for (auto i = 0; i != 1; ++i) {
@@ -61,6 +59,7 @@ int main(int argc, char **argv) {
         }
     } else if (flag == 3) {
         dtb::SimulationOneDimTraffic sod(argc, argv);
+
         sod.show_basic_information();
 //        sod.mpi_comm_test();
         sod.compute_simulation_traffic();

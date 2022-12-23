@@ -1,7 +1,6 @@
 #pragma once
 
 #include <mpi.h>
-#include "LoadData.hpp"
 
 namespace dtb {
     class MpiManage {

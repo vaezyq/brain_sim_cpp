@@ -40,22 +40,22 @@ namespace dtb {
         if (pro_rank == master_rank) {        //主进程负责拆分过程
             auto base_info_p = BaseInfo::getInstance();
             load_traffic_for_gen_map(output_traffic, input_traffic,
-                                     base_info_p->traffic_tables_path + "/" + base_info_p->traffic_file_name,
+                                     base_info_p->traffic_read_write_path + "/" + base_info_p->traffic_file_name,
                                      dimensions);
 
-            std::array<long, GPU_NUM> criteria_traffic{};
+            std::array<traffic_size_type, GPU_NUM> criteria_traffic{};
             while (stop_iter_by_step()) {
                 std::cout << "start the " << iter_numbers << "th iteration" << std::endl;
                 get_criteria_traffic_by_output_input_traffic(criteria_traffic);
                 print_max_min_aver_traffic_info(criteria_traffic);
                 // 发送用于拆分的流量
-                MPI_Bcast(&criteria_traffic[0], GPU_NUM, MPI_UNSIGNED_LONG, master_rank, MPI_COMM_WORLD);
+                MPI_Bcast(&criteria_traffic[0], GPU_NUM, MPI_DOUBLE, master_rank, MPI_COMM_WORLD);
                 std::cout << "send traffic finished" << std::endl;
                 MPI_Barrier(MPI_COMM_WORLD);
                 msp_ptr->split_pop_by_swap_max_min_pop(criteria_traffic);        //划分流量代码要所有进程都执行,map拆分
                 msp_ptr->print_split_result();
                 std::string map_file_path =
-                        BaseInfo::getInstance()->map_path + "/" + std::to_string(iter_numbers) + "_iter.txt";
+                        BaseInfo::getInstance()->map_write_path + "/" + std::to_string(iter_numbers) + "_iter.txt";
                 write_map_data_to_file(SimTrafficForGenMapUtils::load_data_ptr->getMapTable(), map_file_path);
                 //开始计算流量
                 MPI_Status st;
@@ -66,12 +66,12 @@ namespace dtb {
                 constexpr unsigned long array_len = (GPU_NUM) << 1;   //分别是输入流量和输出流量
                 //todo: 这里是否需要更换为unsigned long
                 for (int i = 0; i < master_rank; ++i) {
-                    std::array<long, array_len> temp_traffic{};
-                    MPI_Recv(&temp_traffic[0], GPU_NUM, MPI_LONG, i,
+                    std::array<traffic_size_type, array_len> temp_traffic{};
+                    MPI_Recv(&temp_traffic[0], GPU_NUM, MPI_DOUBLE, i,
                              0, MPI_COMM_WORLD, &st);       //接收输出流量
 
 
-                    MPI_Recv(&temp_traffic[GPU_NUM], GPU_NUM, MPI_LONG, i,
+                    MPI_Recv(&temp_traffic[GPU_NUM], GPU_NUM, MPI_DOUBLE, i,
                              1, MPI_COMM_WORLD, &st);      //接收输入流量
 
 //                    std::cout << "output intput traffic from " << i << std::endl;
@@ -79,11 +79,11 @@ namespace dtb {
 //                    std::cout << std::endl;
                     std::transform(output_traffic.begin(), output_traffic.end(),
                                    temp_traffic.begin(), output_traffic.begin(),
-                                   [](long a, long b) { return a + b; });
+                                   [](auto &a, auto &b) { return a + b; });
 
                     std::transform(input_traffic.begin(), input_traffic.end(),
                                    temp_traffic.begin() + GPU_NUM, input_traffic.begin(),
-                                   [](long a, long b) { return a + b; });
+                                   [](auto &a, auto &b) { return a + b; });
 
                     auto temp_map_table = msp_ptr->getMapTableBeforeChange();
                     SimulationTrafficUtils::load_data_ptr->getMapTable() = std::move(temp_map_table);
@@ -95,9 +95,9 @@ namespace dtb {
                 std::cout << "calculate traffic finished" << std::endl;
             }
         } else {
-            std::array<long, GPU_NUM> criteria_traffic{};
+            std::array<traffic_size_type, GPU_NUM> criteria_traffic{};
             while (stop_iter_by_step()) {
-                MPI_Bcast(&criteria_traffic[0], GPU_NUM, MPI_UNSIGNED_LONG, master_rank, MPI_COMM_WORLD);
+                MPI_Bcast(&criteria_traffic[0], GPU_NUM, MPI_DOUBLE, master_rank, MPI_COMM_WORLD);
                 MPI_Barrier(MPI_COMM_WORLD);
                 msp_ptr->split_pop_by_swap_max_min_pop(criteria_traffic);        //划分流量代码要所有进程都执行,map拆分
                 //开始计算流量
@@ -118,8 +118,8 @@ namespace dtb {
                     std::cout << pro_rank << " ";
                     t.print_time();
                 }
-                MPI_Send(&output_traffic_temp[0], GPU_NUM, MPI_LONG, master_rank, 0, MPI_COMM_WORLD);
-                MPI_Send(&input_traffic_temp[0], GPU_NUM, MPI_LONG, master_rank, 1, MPI_COMM_WORLD);
+                MPI_Send(&output_traffic_temp[0], GPU_NUM, MPI_DOUBLE, master_rank, 0, MPI_COMM_WORLD);
+                MPI_Send(&input_traffic_temp[0], GPU_NUM, MPI_DOUBLE, master_rank, 1, MPI_COMM_WORLD);
                 MPI_Barrier(MPI_COMM_WORLD);        //阻塞等待全部收到,注意子线程也要加上同步
                 auto temp_map_table = msp_ptr->getMapTableBeforeChange();
                 SimulationTrafficUtils::load_data_ptr->getMapTable() = std::move(temp_map_table);

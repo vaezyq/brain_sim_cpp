@@ -12,44 +12,49 @@ enum class Iter_Criteria {
 };
 
 namespace dtb {
+
+    using diff_traffic_size_type = double;
+
     class SimTrafficForGenMapUtils {
 
     public:
-        bool is_in_changed_gpu_lists(std::vector<unsigned> const &gpu_idxs);
+        static bool is_in_changed_gpu_lists(const std::vector<gpu_size_type>  &gpu_idxs);
 
-        void get_criteria_traffic_by_output_input_traffic(std::array<long, GPU_NUM> &criteria_traffic);
+        void get_criteria_traffic_by_output_input_traffic(std::array<traffic_size_type, GPU_NUM> &criteria_traffic);
 
-        void compute_2_dim_output_input_traffic_for_map_iter_no_recursive(unsigned send_idx);
+        void compute_2_dim_output_input_traffic_for_map_iter_no_recursive(const gpu_size_type &send_idx);
 
 
-        int compute_gpu_gpu_or_group_by_out_changed(unsigned send_idx, std::vector<unsigned> recv_lists);
+        diff_traffic_size_type compute_gpu_gpu_or_group_by_out_changed(const gpu_size_type &send_idx,
+                                                                       const std::vector<gpu_size_type> &recv_lists);
 
         static const std::shared_ptr<MapSplitMethod> &getMspPtr();
 
         explicit SimTrafficForGenMapUtils(Iter_Criteria iterCriFlag = Iter_Criteria::OUTPUT_INPUT_MAX);
 
-        const std::array<long, GPU_NUM> &getOutputTrafficTemp() const;
+        const std::array<diff_traffic_size_type, GPU_NUM> &getOutputTrafficTemp() const;
 
-        const std::array<long, GPU_NUM> &getInputTrafficTemp() const;
+        const std::array<diff_traffic_size_type, GPU_NUM> &getInputTrafficTemp() const;
 
-        std::array<long, GPU_NUM> &getOutputTraffic();
+        std::array<traffic_size_type, GPU_NUM> &getOutputTraffic();
 
-        std::array<long, GPU_NUM> &getInputTraffic();
+        std::array<traffic_size_type, GPU_NUM> &getInputTraffic();
 
     protected:
         Iter_Criteria iter_cri_flag;   //每次根据何种流量进行迭代
         static constexpr unsigned dimensions = 2;
 
-        std::array<long, GPU_NUM> output_traffic_temp{};
-        std::array<long, GPU_NUM> input_traffic_temp{};
+        std::array<diff_traffic_size_type, GPU_NUM> output_traffic_temp{};
+        std::array<diff_traffic_size_type, GPU_NUM> input_traffic_temp{};
 
-        std::array<long, GPU_NUM> output_traffic{};       //输出流量
-        std::array<long, GPU_NUM> input_traffic{};  //输入流量
+        std::array<traffic_size_type, GPU_NUM> output_traffic{};       //输出流量
+        std::array<traffic_size_type, GPU_NUM> input_traffic{};  //输入流量
 
         static std::shared_ptr<MapSplitMethod> msp_ptr;
-        static SimulationTrafficUtils stutils;
-        static std::shared_ptr<LoadData> load_data_ptr;
 
+        static SimulationTrafficUtils stutils;
+
+        static std::shared_ptr<LoadData> load_data_ptr;
 
     };
 
@@ -59,10 +64,10 @@ namespace dtb {
 
     std::shared_ptr<LoadData> SimTrafficForGenMapUtils::load_data_ptr = LoadData::getLoadDataInstance();
 
-    bool SimTrafficForGenMapUtils::is_in_changed_gpu_lists(const std::vector<unsigned int> &gpu_idxs) {
-        for (auto it = gpu_idxs.begin(); it != gpu_idxs.end(); ++it) {
-
-            if (std::find(msp_ptr->getChangedGpuIdx().begin(), msp_ptr->getChangedGpuIdx().end(), *it) !=
+    bool SimTrafficForGenMapUtils::is_in_changed_gpu_lists(const std::vector<gpu_size_type> &gpu_idxs) {
+        //这里可以替换成any_of
+        for (unsigned int gpu_idx: gpu_idxs) {
+            if (std::find(msp_ptr->getChangedGpuIdx().begin(), msp_ptr->getChangedGpuIdx().end(), gpu_idx) !=
                 msp_ptr->getChangedGpuIdx().end()) {
                 return true;
             }
@@ -71,47 +76,47 @@ namespace dtb {
     }
 
 
-    void SimTrafficForGenMapUtils::compute_2_dim_output_input_traffic_for_map_iter_no_recursive(unsigned int send_idx) {
+    void SimTrafficForGenMapUtils::compute_2_dim_output_input_traffic_for_map_iter_no_recursive(
+            const gpu_size_type &send_idx) {
         bool is_changed_send = is_in_changed_gpu_lists({send_idx});
-        std::vector<unsigned> recv_lists(dtb::GPU_NUM, 0);
+
+        std::vector<gpu_size_type> recv_lists(dtb::GPU_NUM, 0);
         std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
+        diff_traffic_size_type temp_traffic{0.0}, temp_traffic_old{0.0};
         auto const &forward_list_send = stutils.get_list_send_by_route_table(send_idx, recv_lists);
         for (auto &in_idx_pair: *forward_list_send) {
             if (in_idx_pair.second.size() == 1) {
                 if (!is_in_same_node(send_idx, in_idx_pair.first)) {
                     auto lists_changed_flag = is_in_changed_gpu_lists({in_idx_pair.first});
                     if (is_changed_send && (!lists_changed_flag)) {
-                        auto temp_traffic = compute_gpu_gpu_or_group_by_out_changed(send_idx, {in_idx_pair.first});
+                        temp_traffic = compute_gpu_gpu_or_group_by_out_changed(send_idx, {in_idx_pair.first});
                         output_traffic_temp[send_idx] += temp_traffic;
                         input_traffic_temp[in_idx_pair.first] += temp_traffic;
 //                        std::cout << 1 << " " << temp_traffic << std::endl;
                     } else if (lists_changed_flag) {
-                        auto temp_traffic = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair.first);
-                        auto temp_traffic_old = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair.first,
-                                                                                    msp_ptr->getMapTableBeforeChange());
-                        output_traffic_temp[send_idx] += (static_cast<long> (temp_traffic) -
-                                                          static_cast<long>(temp_traffic_old));
-                        input_traffic_temp[in_idx_pair.first] += (static_cast<long>(temp_traffic) -
-                                                                  static_cast<long>(temp_traffic_old));
+                        temp_traffic = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair.first);
+                        temp_traffic_old = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair.first,
+                                                                               msp_ptr->getMapTableBeforeChange());
+                        output_traffic_temp[send_idx] += (temp_traffic - temp_traffic_old);
+
+                        input_traffic_temp[in_idx_pair.first] += (temp_traffic - temp_traffic_old);
 //                        std::cout << 2 << " " << temp_traffic << " " << temp_traffic_old << std::endl;
                     }
                 }
             } else {
                 auto recv_changed_flag = is_in_changed_gpu_lists(in_idx_pair.second);
                 if (is_changed_send && (!recv_changed_flag)) {
-                    auto temp_traffic = compute_gpu_gpu_or_group_by_out_changed(send_idx, {in_idx_pair.second});
+                    temp_traffic = compute_gpu_gpu_or_group_by_out_changed(send_idx, {in_idx_pair.second});
                     output_traffic_temp[send_idx] += temp_traffic;
                     input_traffic_temp[in_idx_pair.first] += temp_traffic;
 //                    std::cout << 3 << " " << temp_traffic << std::endl;
                 } else if (recv_changed_flag) {
 
-                    auto temp_traffic = stutils.sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
-                    auto temp_traffic_old = stutils.sim_traffic_between_gpu_group(send_idx, in_idx_pair.second,
-                                                                                  msp_ptr->getMapTableBeforeChange());
-                    output_traffic_temp[send_idx] += (static_cast<long>(temp_traffic) -
-                                                      static_cast<long>(temp_traffic_old));
-                    input_traffic_temp[in_idx_pair.first] += (static_cast<long>(temp_traffic) -
-                                                              static_cast<long>(temp_traffic_old));
+                    temp_traffic = stutils.sim_traffic_between_gpu_group(send_idx, in_idx_pair.second);
+                    temp_traffic_old = stutils.sim_traffic_between_gpu_group(send_idx, in_idx_pair.second,
+                                                                             msp_ptr->getMapTableBeforeChange());
+                    output_traffic_temp[send_idx] += (temp_traffic - temp_traffic_old);
+                    input_traffic_temp[in_idx_pair.first] += (temp_traffic - temp_traffic_old);
 //                    std::cout << 4 << " " << temp_traffic << " " << temp_traffic_old << std::endl;
                 }
                 auto forward_sub_idx = stutils.get_list_send_by_route_table(in_idx_pair.first,
@@ -122,20 +127,18 @@ namespace dtb {
                         if (is_changed_send && (!recv_2_changed)) {
 
                             if (!is_in_same_node(send_idx, in_idx_pair_1.first)) {
-                                auto temp_traffic = compute_gpu_gpu_or_group_by_out_changed(send_idx,
-                                                                                            {in_idx_pair_1.first});
+                                temp_traffic = compute_gpu_gpu_or_group_by_out_changed(send_idx,
+                                                                                       {in_idx_pair_1.first});
                                 output_traffic_temp[in_idx_pair.first] += temp_traffic;
                                 input_traffic_temp[in_idx_pair_1.first] += temp_traffic;
 //                                std::cout << 5 << " " << in_idx_pair_1.first << " " << temp_traffic << std::endl;
                             }
                         } else if (recv_changed_flag) {
-                            auto temp_traffic = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first);
-                            auto temp_traffic_old = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first,
-                                                                                        msp_ptr->getMapTableBeforeChange());
-                            output_traffic_temp[in_idx_pair.first] += (static_cast<long>(temp_traffic) -
-                                                                       static_cast<long>(temp_traffic_old));
-                            input_traffic_temp[in_idx_pair_1.first] += (static_cast<long>(temp_traffic) -
-                                                                        static_cast<long>(temp_traffic_old));
+                            temp_traffic = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first);
+                            temp_traffic_old = stutils.sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first,
+                                                                                   msp_ptr->getMapTableBeforeChange());
+                            output_traffic_temp[in_idx_pair.first] += (temp_traffic - temp_traffic_old);
+                            input_traffic_temp[in_idx_pair_1.first] += (temp_traffic - temp_traffic_old);
 //                            std::cout << 6 << " " << temp_traffic << " " << temp_traffic_old << std::endl;
                         }
                     }
@@ -144,8 +147,8 @@ namespace dtb {
         }
     }
 
-    int SimTrafficForGenMapUtils::compute_gpu_gpu_or_group_by_out_changed(unsigned int send_idx,
-                                                                          std::vector<unsigned int> recv_lists) {
+    traffic_size_type SimTrafficForGenMapUtils::compute_gpu_gpu_or_group_by_out_changed(const gpu_size_type &send_idx,
+                                                                                        const std::vector<gpu_size_type> &recv_lists) {
         std::vector<unsigned> changed_pop_idx_in_new_map{};
         auto &map_table_old = msp_ptr->getMapTableBeforeChange();
         for (auto const &pop_pair: load_data_ptr->getMapTable()[send_idx]) {
@@ -167,8 +170,7 @@ namespace dtb {
     }
 
     void SimTrafficForGenMapUtils::get_criteria_traffic_by_output_input_traffic(
-            std::array<long, GPU_NUM> &criteria_traffic) {
-
+            std::array<traffic_size_type, GPU_NUM> &criteria_traffic) {
         switch (iter_cri_flag) {
             case Iter_Criteria::INPUT_TRAFFIC:
                 criteria_traffic = input_traffic;
@@ -194,19 +196,19 @@ namespace dtb {
 
     SimTrafficForGenMapUtils::SimTrafficForGenMapUtils(Iter_Criteria iterCriFlag) : iter_cri_flag(iterCriFlag) {}
 
-    const std::array<long, GPU_NUM> &SimTrafficForGenMapUtils::getOutputTrafficTemp() const {
+    const std::array<traffic_size_type, GPU_NUM> &SimTrafficForGenMapUtils::getOutputTrafficTemp() const {
         return output_traffic_temp;
     }
 
-    const std::array<long, GPU_NUM> &SimTrafficForGenMapUtils::getInputTrafficTemp() const {
+    const std::array<traffic_size_type, GPU_NUM> &SimTrafficForGenMapUtils::getInputTrafficTemp() const {
         return input_traffic_temp;
     }
 
-    std::array<long, GPU_NUM> &SimTrafficForGenMapUtils::getOutputTraffic() {
+    std::array<traffic_size_type, GPU_NUM> &SimTrafficForGenMapUtils::getOutputTraffic() {
         return output_traffic;
     }
 
-    std::array<long, GPU_NUM> &SimTrafficForGenMapUtils::getInputTraffic() {
+    std::array<traffic_size_type, GPU_NUM> &SimTrafficForGenMapUtils::getInputTraffic() {
         return input_traffic;
     }
 

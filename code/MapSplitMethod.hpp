@@ -8,20 +8,20 @@
 namespace dtb {
     class MapSplitMethod {
     private:
-        int step = 5;     //迭代的步数
-        std::vector<unsigned> changed_gpu_idx{};   //本次迭代更改的gpu
-        std::vector<std::unordered_map<int, double> > map_table_before_change{};
+        unsigned step = 5;     //迭代的步数
+
+        std::vector<gpu_size_type> changed_gpu_idx{};   //本次迭代更改的gpu
+        std::vector<std::unordered_map<gpu_size_type, double> > map_table_before_change{};
         std::shared_ptr<LoadData> load_data_instance = LoadData::getLoadDataInstance();
     public:
         template<size_t size>
-        void split_pop_by_swap_max_min_pop(const std::array<long, size> &traffic_table);
+        void split_pop_by_swap_max_min_pop(const std::array<traffic_size_type, size> &traffic_table);
 
         void print_split_result();
 
-        const std::vector<unsigned int> &getChangedGpuIdx() const;
+        const std::vector<gpu_size_type> &getChangedGpuIdx() const;
 
-        std::vector<std::unordered_map<int, double>> &getMapTableBeforeChange();
-
+        std::vector<std::unordered_map<gpu_size_type, double>> &getMapTableBeforeChange();
 
         static std::shared_ptr<MapSplitMethod> getInstance();
 
@@ -35,11 +35,9 @@ namespace dtb {
 
         MapSplitMethod() = default;
 
-
     };
 
     std::shared_ptr<MapSplitMethod> MapSplitMethod::instance_ptr = nullptr;
-
 
     std::shared_ptr<MapSplitMethod> MapSplitMethod::getInstance() {
         if (!instance_ptr) {
@@ -51,35 +49,36 @@ namespace dtb {
 
     void MapSplitMethod::print_split_result() {
         std::cout << "The gpus changed in this iteration are: ";
-        std::for_each(changed_gpu_idx.begin(), changed_gpu_idx.end(), [](unsigned i) { std::cout << i << " "; });
+        std::for_each(changed_gpu_idx.begin(), changed_gpu_idx.end(), [](auto i) { std::cout << i << " "; });
         std::cout << std::endl;
-        for (auto it = changed_gpu_idx.begin(); it != changed_gpu_idx.end(); ++it) {
-            std::cout << "gpu index: " << *it << std::endl;
+        for (unsigned int &it: changed_gpu_idx) {
+            std::cout << "gpu index: " << it << std::endl;
             std::cout << "before change: " << std::endl;
-            for (auto &pop_pair: map_table_before_change[*it]) {
+            for (auto &pop_pair: map_table_before_change[it]) {
                 std::cout << pop_pair.first << " : " << pop_pair.second << " ,";
             }
             std::cout << std::endl;
             std::cout << "after change: " << std::endl;
-            for (auto &pop_pair: load_data_instance->getMapTable()[*it]) {
+            for (auto &pop_pair: load_data_instance->getMapTable()[it]) {
                 std::cout << pop_pair.first << " : " << pop_pair.second << " ,";
             }
             std::cout << std::endl;
         }
     }
 
-    const std::vector<unsigned int> &MapSplitMethod::getChangedGpuIdx() const {
+    const std::vector<gpu_size_type> &MapSplitMethod::getChangedGpuIdx() const {
         return changed_gpu_idx;
     }
 
-    std::vector<std::unordered_map<int, double>> &MapSplitMethod::getMapTableBeforeChange() {
+    std::vector<std::unordered_map<gpu_size_type, double>> &MapSplitMethod::getMapTableBeforeChange() {
         return map_table_before_change;
     }
 
 
     template<size_t size>
     void
-    MapSplitMethod::split_pop_by_swap_max_min_pop(const std::array<long, size> &traffic_table) {   //这个函数需要更改
+    MapSplitMethod::split_pop_by_swap_max_min_pop(
+            const std::array<traffic_size_type, size> &traffic_table) {   //这个函数需要更改
         changed_gpu_idx.clear();
         std::copy(load_data_instance->getMapTable().begin(), load_data_instance->getMapTable().end(),
                   std::back_inserter(map_table_before_change));

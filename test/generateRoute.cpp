@@ -10,7 +10,7 @@
 
 int main() {
     dtb::TimePrint tp;
-    std::vector<unsigned int> dim{40, 50};
+    std::vector<unsigned int> dim{50,40};
     dtb::GenerateDefaultRoute gdr(dim);
 //    gdr.generate_specific_default_route();
     gdr.generate_confirm_and_save_specific_default_route();

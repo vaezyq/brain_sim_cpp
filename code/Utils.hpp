@@ -19,8 +19,19 @@
 #include <array>
 #include <fstream>
 #include <sstream>
+#include "BaseInfo.hpp"
 
 namespace dtb {
+
+    using gpu_size_type = unsigned;  //所有gpu卡编号采用unsigned,目前卡编号远小于这个数值
+
+    using pop_size_type = unsigned;  //所有pop编号采用unsigned,目前体素大概十万,64位系统远远满足
+
+    using neuron_size_type = double;   //神经元数目目前为亿级别，最大为860亿，可采用double表示
+
+    using traffic_size_type = double;     //目前的流量统计，使用unsigned一定会溢出，也可以使用unsigned long long,这里直接使用double
+
+
     /*!
     * 传入一个vector,以及文件路径，将文件内数据读入vector中
     * @tparam T  vector需要存储的元素类型
@@ -47,7 +58,7 @@ namespace dtb {
     * @param gpu_b  卡b编号
     * @return 在一个卡内则返回true,否则返回false
     */
-    inline bool is_in_same_node(const unsigned &gpu_a, const unsigned &gpu_b) {
+    inline bool is_in_same_node(const gpu_size_type &gpu_a, const gpu_size_type &gpu_b) {
         if (gpu_a / 4 == gpu_b / 4) {
             return true;
         }
@@ -62,7 +73,7 @@ namespace dtb {
     */
     //17w*10 170w
     //todo 并行或采用cuda优化这个函数
-    unsigned long sample(unsigned long sample_range, unsigned int sample_times);
+    traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times);
 
 
     /*!
@@ -71,7 +82,7 @@ namespace dtb {
      * @param traffic_table 流量表
      */
     template<size_t size>
-    void print_max_min_aver_traffic_info(const std::array<unsigned long, size> &traffic_table);
+    void print_max_min_aver_traffic_info(const std::array<traffic_size_type, size> &traffic_table);
 
 
     /*!
@@ -139,20 +150,22 @@ namespace dtb {
         }
     }
 
-    unsigned long sample(const unsigned long sample_range, const unsigned int sample_times) {
+    traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times) {
         srand(time(nullptr));
         std::unordered_set<unsigned long> random_sample;
         for (unsigned int i = 0; i < sample_times; ++i) {
 //        std::uniform_int_distribution<int> dist(0, sample_range);
-            if (auto result = rand() % sample_range;!random_sample.count(result)) {
+            auto sample_range_int = static_cast<long long >(sample_range);
+            if (auto result = rand() % sample_range_int;!random_sample.count(result)) {
                 random_sample.insert(result);
             }
         }
         return random_sample.size();
     }
 
+
     template<size_t size>
-    void print_max_min_aver_traffic_info(const std::array<long, size> &traffic_table) {
+    void print_max_min_aver_traffic_info(const std::array<traffic_size_type, size> &traffic_table) {
 
         auto max_iter = std::max_element(traffic_table.cbegin(), traffic_table.cend());
         auto min_iter = std::min_element(traffic_table.cbegin(), traffic_table.cend());
@@ -175,6 +188,7 @@ namespace dtb {
             std::ifstream traffic_table_file;
             std::string line;
             traffic_table_file.open(traffic_file_path);
+
             traffic_table_file.exceptions(std::ifstream::badbit);
             int idx = 0;
             while (getline(traffic_table_file, line)) {
@@ -185,9 +199,9 @@ namespace dtb {
 //                    std::cout << item << std::endl;
                     if (i++ < dimension) {
 //                        std::cout << std::stoul(item) << std::endl;
-                        traffic_output_iter_map[idx] += stoul(item);
+                        traffic_output_iter_map[idx] += stod(item);
                     } else {
-                        traffic_input_iter_map[idx] += stoul(item);
+                        traffic_input_iter_map[idx] += stod(item);
                     }
                 }
                 idx++;
