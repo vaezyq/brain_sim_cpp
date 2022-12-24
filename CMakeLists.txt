@@ -19,7 +19,7 @@ add_executable(mpiTest test/mpiTest.cpp)
 
 add_executable(someTest test/someTest.cpp code/GenerateMapParallel.hpp code/MapSplitMethod.hpp)
 
-add_executable(generateMap code/LoadData.hpp code/BaseInfo.hpp code/Utils.hpp test/generateMap.cpp code/MpiManage.hpp code/SimulationTrafficUtils.hpp code/MapSplitMethod.hpp code/SimTrafficForGenMapUtils.hpp)
+add_executable(generateMap code/LoadData.hpp code/BaseInfo.hpp code/Utils.hpp test/generateMap.cpp code/MpiManage.hpp code/SimulationTrafficUtils.hpp code/MapSplitMethod.hpp code/SimTrafficForGenMapUtils.hpp code/GenerateMapUtils.hpp)
 
 
 find_package(MPI REQUIRED)

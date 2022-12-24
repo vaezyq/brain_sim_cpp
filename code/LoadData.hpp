@@ -124,6 +124,7 @@ namespace dtb {
         assert(degree_table.size() == POP_NUM);        //判断degree是否读取正确
         assert(map_table.size() == GPU_NUM);         //判断map表是否读取正确
         confirm_load_data();  //剩余验证，因为验证路由表很耗时，有时可以省略这一步
+        show_basic_information();
     }
 
 

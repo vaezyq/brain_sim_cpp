@@ -105,7 +105,7 @@ namespace dtb {
 //                arr);   //最终计算得到的转发表
         auto route_table_ptr = std::make_unique<std::vector<std::vector<gpu_size_type>>>(
                 std::vector<std::vector<gpu_size_type> >(GPU_NUM,
-                                                        std::vector<gpu_size_type>(GPU_NUM, 0)));
+                                                         std::vector<gpu_size_type>(GPU_NUM, 0)));
         for (gpu_size_type in_rank = 0; in_rank != GPU_NUM; ++in_rank) {
             std::cout << in_rank << std::endl;
 
@@ -159,9 +159,7 @@ namespace dtb {
         }
         auto max_ele = *std::max_element(step_length.begin(), step_length.end()) + 1;
         for (auto i = 0; i < max_ele; i++) {
-
             auto forward_times = std::count(step_length.begin(), step_length.end(), i);
-
             printf("转发次数为%d的频数: %ld\n", i, forward_times);
         }
         printf("频数总和: %f\n", std::pow(GPU_NUM, 2));
@@ -171,7 +169,6 @@ namespace dtb {
 
         auto route_table_ptr = generate_specific_default_route();   //生成指定维度的路由表
         confirm_route_table(*route_table_ptr);  //验证路由表的准确性
-
 
         std::string route_file_name = "route_default";
         for (auto const &e: dim) {

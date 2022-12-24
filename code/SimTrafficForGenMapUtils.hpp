@@ -25,7 +25,7 @@ namespace dtb {
         void compute_2_dim_output_input_traffic_for_map_iter_no_recursive(const gpu_size_type &send_idx);
 
 
-        diff_traffic_size_type compute_gpu_gpu_or_group_by_out_changed(const gpu_size_type &send_idx,
+        static diff_traffic_size_type compute_gpu_gpu_or_group_by_out_changed(const gpu_size_type &send_idx,
                                                                        const std::vector<gpu_size_type> &recv_lists);
 
         static const std::shared_ptr<MapSplitMethod> &getMspPtr();

@@ -96,7 +96,7 @@ namespace dtb {
     template<typename T>
     void
     load_traffic_for_gen_map(T &traffic_output_iter_map, T &traffic_input_iter_map,
-                             const std::string &traffic_file_path, const unsigned dimension);
+                             const std::string &traffic_file_path, unsigned dimension);
 
 
     /*!
@@ -153,7 +153,7 @@ namespace dtb {
     traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times) {
         srand(time(nullptr));
         std::unordered_set<unsigned long> random_sample;
-        for (unsigned int i = 0; i < sample_times; ++i) {
+        for (unsigned  i = 0; i < sample_times; ++i) {
 //        std::uniform_int_distribution<int> dist(0, sample_range);
             auto sample_range_int = static_cast<long long >(sample_range);
             if (auto result = rand() % sample_range_int;!random_sample.count(result)) {

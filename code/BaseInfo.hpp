@@ -47,6 +47,8 @@ namespace dtb {
 
     public:       //一些常用的基本文件名
         const std::string iter_map_dir = "iter_size_balanced_map_by_balancing_traffic";
+        const std::string gene_sequential_map_name = "sequential_map";
+        const std::string gene_size_balanced_name = "size_degree_balanced_map";
 
     public:   //map_table 目录路径
 
