@@ -3,7 +3,6 @@
 
 #include <string>
 #include <memory>
-#include "Utils.hpp"
 
 /*
  * 不同版本gcc兼容，解决参考：
@@ -30,6 +29,13 @@ namespace fs = filesystem_name;
 
 namespace dtb {
 
+    using gpu_size_type = unsigned;  //gpu卡编号,2000卡为[0,2000)的整数,所有gpu卡编号采用unsigned
+
+    using pop_size_type = unsigned;  //所有pop编号采用unsigned,目前非零体素总量为[0,171508),含零总量为[0,227022),
+
+    using neuron_size_type = double;   //神经元总数为亿级别,最大为860亿,可采用double表示
+
+    using traffic_size_type = double;     //流量统计结果,2000卡100亿神经元时结果级别为10e7,使用unsigned一定会溢出,也可以使用unsigned long long,这里直接使用double
 
     constexpr gpu_size_type GPU_NUM = 2000;        //模拟的GPU的个数
     constexpr neuron_size_type NEURON_NUM = 1e10;          //模拟的神经元个数
@@ -38,14 +44,14 @@ namespace dtb {
 
     class BaseInfo {    //基本路径的配置加载类
     public:   //目录路径
-        const std::string project_root = fs::current_path().parent_path();       //项目路径为code代码的上一层，这作为文件的工作路径
+        const std::string project_root = fs::current_path().parent_path();       //项目路径为code代码的上一层，作为文件的工作路径
 //        const std::string project_root = "/public/home/ssct005t/project/wml_istbi/brain_sim";       //项目路径
         const std::string tables_dir_path = project_root + "/tables";       //表数据路径
-        const std::string route_dir_path = tables_dir_path + "/route_tables";     //路由表路径
-        const std::string conn_dir_path = tables_dir_path + "/conn_tables";     //连接概率表路径
+        const std::string route_dir_path = tables_dir_path + "/route_tables";     //路由表(route)路径
+        const std::string conn_dir_path = tables_dir_path + "/conn_tables";     //连接概率表(conn)路径
 
 
-    public:       //一些常用的基本文件名
+    public:       //常用的基本文件名(用作写入文件时)
         const std::string iter_map_dir = "iter_size_balanced_map_by_balancing_traffic";
         const std::string gene_sequential_map_name = "sequential_map";
         const std::string gene_size_balanced_name = "size_degree_balanced_map";
@@ -65,7 +71,7 @@ namespace dtb {
         const std::string traffic_read_write_path =
                 traffic_base_path + "/" + "traffic_" + std::to_string(GPU_NUM);//流量表读写路径
 
-    public:    //文件路径
+    public:    //文件名
         const std::string route_file_name = "route_default_40_50.txt";   //路由表文件名
 
         const std::string conn_file_name = "conn_dict_int.txt";     //连接概率表文件名
@@ -79,14 +85,23 @@ namespace dtb {
         const std::string traffic_file_name = "traffic_table_out_in_2_dim_map_2000_balance_size_map.txt";       //traffic文件名
 
     public:
+
+
         /*!
-         * 若上述目录不存在则创建，创建上述目录
+         * BaseInfo类设计为singleton,目前在多线程访问Instance之前会已经构造出唯一实例，所以没有采用多线程写法，后续若有问题需添加双检锁
          * @return
          */
         static std::shared_ptr<BaseInfo> getInstance();
 
+        /*!
+         * 单例模式不允许复制构造函数
+         */
         BaseInfo(const BaseInfo &) = delete;
 
+        /*!
+         * 单例模式不允许拷贝构造函数
+         * @return
+         */
         BaseInfo &operator=(const BaseInfo &) = delete;
 
     private:
@@ -112,7 +127,7 @@ namespace dtb {
 
 //            fs::create_directories(instance_ptr->project_root);
 //            fs::create_directories(instance_ptr->tables_path);      //因为是递归创建，所以这两行不需要
-            fs::create_directories(instance_ptr->route_dir_path);      //迭代创建文件夹目录
+            fs::create_directories(instance_ptr->route_dir_path);      //递归创建文件夹目录
             fs::create_directories(instance_ptr->conn_dir_path);
             fs::create_directories(instance_ptr->traffic_read_write_path);
             fs::create_directories(instance_ptr->map_read_path);

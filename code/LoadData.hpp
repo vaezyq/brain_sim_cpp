@@ -4,14 +4,16 @@
 #include <fstream>
 #include <memory>
 #include <string>
-#include "BaseInfo.hpp"
+#include "Utils.hpp"
 #include <cassert>
 #include <array>
+#include "AssertUtils.hpp"
+
 
 
 /*
  * todo: 加载数据的部分或许可以参考下述链接进行重构
- * 目前存储的为txt文件，因此在读取上依赖于stringstream的构造,当构造了很多stringstream时会降低读取速度
+ * 目前存储的为txt文件，因此在读取上依赖于stringstream的构造,当构造了很多stringstream时会严重降低读取速度
  * 目前读取全部文件耗时大概23s
  * https://stackoverflow.com/questions/71661178/faster-way-of-loading-big-stdvectorstdvectorfloat-from-file
  * https://stackoverflow.com/questions/54238956/fastest-way-to-read-a-vectordouble-from-file
@@ -25,9 +27,9 @@ namespace dtb {
 
         LoadData();
 
-        static std::shared_ptr<BaseInfo> base_info_ptr;     //基本信息类单例指针
+        static std::shared_ptr<BaseInfo> base_info_ptr;     //基本信息被设计为单例，这是基本信息类单例指针
 
-        std::unordered_map<double, double> conn_dict_table;   //连接表数据,key-value形式
+        std::unordered_map<double, double> conn_dict_table;   //连接表(conn)数据,key-value形式
 
         std::array<double, POP_NUM> size_table; //体素大小数据
 
@@ -35,7 +37,7 @@ namespace dtb {
 
         std::vector<std::unordered_map<gpu_size_type, double> > map_table;   //map表数据
 
-        std::array<std::array<gpu_size_type, GPU_NUM>, GPU_NUM> default_route_table;     //默认路由表数据
+        std::array<std::array<gpu_size_type, GPU_NUM>, GPU_NUM> default_route_table;     //默认路由表数据,后续可能会加入不规整路由表,这个是规整路由表
 
 
     public:
@@ -113,6 +115,9 @@ namespace dtb {
         template<typename T>
         static void load_one_dim_traffic_result(T &one_dim_traffic);
 
+        /*!
+         * 输出加载后的数据信息
+         */
         void show_basic_information();
 
     };
@@ -120,10 +125,8 @@ namespace dtb {
     void LoadData::load_data() {
         //todo:这里应加上验证：验证路由表是否全部走通，大小是否对。验证map表所有map加和是否完整
         load_map(), load_conn(), load_size(), load_degree(), load_route();
-        assert(size_table.size() == POP_NUM);        //判断size是否读取正确
-        assert(degree_table.size() == POP_NUM);        //判断degree是否读取正确
-        assert(map_table.size() == GPU_NUM);         //判断map表是否读取正确
-        confirm_load_data();  //剩余验证，因为验证路由表很耗时，有时可以省略这一步
+
+        confirm_load_data();  //验证读取结果是否正确，因为验证路由表很耗时，有时可以省略这一步
         show_basic_information();
     }
 
@@ -133,14 +136,16 @@ namespace dtb {
     std::shared_ptr<BaseInfo>  LoadData::base_info_ptr = BaseInfo::getInstance();
 
     void LoadData::load_conn() {      //这里使用double，使用更小的精度或许可以减少内存占用
+
+        std::string conn_dict_table_file_path = base_info_ptr->conn_dir_path + "/" + base_info_ptr->conn_file_name;
         try {
             //这里在4G的内存上运行会报错，内存不够
             std::ifstream conn_dict_int;
             std::string line;
-            conn_dict_int.open(base_info_ptr->conn_dir_path + "/" + base_info_ptr->conn_file_name);
+            conn_dict_int.open(conn_dict_table_file_path);
             conn_dict_int.exceptions(std::ifstream::badbit);
             long idx = 0;
-            while (getline(conn_dict_int, line)) {
+            while (getline(conn_dict_int, line)) {           //conn表为一行两个double数据，分别是key value
                 double k{0.0};
                 double v{0.0};
                 idx++;
@@ -155,8 +160,8 @@ namespace dtb {
 //            }
             }
         } catch (std::ios_base::failure &e) {
-            std::cout << "load conn table file failed," << e.what() << std::endl;
-            std::terminate();
+            std::cout << "load conn table file " << conn_dict_table_file_path << " failed," << e.what() << std::endl;
+            exit(1);
         }
     }
 
@@ -186,31 +191,33 @@ namespace dtb {
                 idx++;
             }
         } catch (std::ios_base::failure &e) {
-            std::cout << map_table_file_path << std::endl;
-            std::cout << "load map table file failed," << e.what() << std::endl;
+            std::cout << "load map table file " << map_table_file_path << " failed," << e.what() << std::endl;
             std::terminate();
         }
     }
 
     void LoadData::load_size() {
-        load_vector_data(size_table, base_info_ptr->conn_dir_path + "/" + base_info_ptr->size_file_name, POP_NUM);
+        load_vector_data(size_table, base_info_ptr->conn_dir_path + "/" + base_info_ptr->size_file_name);
     }
 
     void LoadData::load_degree() {
-        load_vector_data(degree_table, base_info_ptr->conn_dir_path + "/" + base_info_ptr->degree_file_name, POP_NUM);
+        load_vector_data(degree_table, base_info_ptr->conn_dir_path + "/" + base_info_ptr->degree_file_name);
     }
 
     void LoadData::load_route() {
 
+        std::string route_table_file_path = base_info_ptr->route_dir_path + "/" + base_info_ptr->route_file_name;
+
         try {
             std::ifstream route_table_file;
             std::string line;
-            route_table_file.open(base_info_ptr->route_dir_path + "/" + base_info_ptr->route_file_name);
+            route_table_file.open(route_table_file_path);
             route_table_file.exceptions(std::ifstream::badbit);
             if (!route_table_file.is_open()) {
                 std::cout << "route file open failed" << std::endl;
                 return;
             }
+
             gpu_size_type idx = 0;
             while (getline(route_table_file, line)) {  //每一行都是空格隔开的数字(含有GPU_NUM行)
                 /*
@@ -228,8 +235,8 @@ namespace dtb {
             }
             route_table_file.close();
         } catch (std::ios_base::failure &e) {
-            std::cout << "load route table file failed," << e.what() << std::endl;
-            std::terminate();
+            std::cout << "load route table file " << route_table_file_path << " failed," << e.what() << std::endl;
+            exit(1);
         }
     }
 
@@ -269,6 +276,8 @@ namespace dtb {
 
     void LoadData::show_basic_information() {
         std::cout << "show basic information: " << std::endl;
+        std::cout << "************************" << std::endl;
+
         std::cout << "Gpu num: " << GPU_NUM << ",Neuron num: " << NEURON_NUM << ",Pop num: " << POP_NUM << std::endl;
         std::cout << "project root path: " << base_info_ptr->project_root << std::endl;
         //连接概率表、size表和degree表每次不会发生变化，因此这里不再打印
@@ -280,7 +289,7 @@ namespace dtb {
         std::cout << "map table file path: " << base_info_ptr->map_read_path << "/" << base_info_ptr->map_file_name
                   << std::endl;
         std::cout << "conn dict len: " << conn_dict_table.size() << std::endl;
-        //这里可以加一些map表与route表的验证函数调用
+        std::cout << "************************" << std::endl;
     }
 
     template<typename T>

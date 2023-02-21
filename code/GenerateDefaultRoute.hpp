@@ -9,8 +9,11 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include "BaseInfo.hpp"
 #include <cassert>
+#include <cmath>
+#include "BaseInfo.hpp"
+#include "ProcessFileDataUtils.hpp"
+#include "AssertUtils.hpp"
 
 
 namespace dtb {
@@ -36,9 +39,16 @@ namespace dtb {
         static void confirm_route_table(std::vector<std::vector<gpu_size_type >> const &);
 
         /*!
-         *主调用函数，用于生成路由表、验证路由表准确性，并保存路由表到txt文件
+         *主调用函数，用于生成路由表、验证路由表准确性，并保存路由表到文件
          */
         void generate_confirm_and_save_specific_default_route();
+
+
+        /*!
+         * 主调用函数，用于生成路由表、验证路由表准确性，并保存路由表到txt文件，这个是旧版代码，保存的txt文件易于阅读，但是读写很慢
+         */
+         [[deprecated("The storage is too slow for txt")]]
+        void generate_confirm_and_save_specific_default_route_save_txt();
 
     private:
 
@@ -63,9 +73,13 @@ namespace dtb {
     };
 
     GenerateDefaultRoute::GenerateDefaultRoute(const std::vector<gpu_size_type> &dim) : dim(dim) {
-        assert(std::accumulate(dim.begin(), dim.end(), 1, [](int a, int b) { return a * b; }) ==
-               GPU_NUM);  //判断节点数目是否等于模拟的卡数
+
+        assert_load_data("Dimension error",
+                         std::accumulate(dim.begin(), dim.end(), 1, [](int a, int b) { return a * b; }) ==
+                         GPU_NUM);     //判断节点数目是否等于模拟的卡数
+
         dim_len = dim.size();
+
     }
 
     std::unique_ptr<std::vector<std::vector<gpu_size_type >>> GenerateDefaultRoute::get_rank_coordinate() {
@@ -142,7 +156,6 @@ namespace dtb {
     void GenerateDefaultRoute::confirm_route_table(std::vector<std::vector<gpu_size_type >> const &route_table) {
         std::vector<gpu_size_type> step_length(GPU_NUM * GPU_NUM, 0);
 
-//        std::array<std::array<unsigned, GPU_NUM>, GPU_NUM> step_length;
         std::cout << "Begin to confirm route table..." << std::endl;
         for (gpu_size_type src = 0; src < GPU_NUM; ++src) {
             for (gpu_size_type dst = 0; dst < GPU_NUM; ++dst) {
@@ -150,7 +163,7 @@ namespace dtb {
                 while ((route_table)[temp_src][dst] != temp_src) {
                     temp_src = (route_table)[temp_src][dst];
                     step_length[src * GPU_NUM + dst] += 1;
-                    assert(step_length[src * GPU_NUM + dst] < 10);
+                    assert_load_data("Too many forwards", step_length[src * GPU_NUM + dst] < 10);
                 }
             }
             if (src / 1000 == 0) {
@@ -165,7 +178,24 @@ namespace dtb {
         printf("频数总和: %f\n", std::pow(GPU_NUM, 2));
     }
 
+
     void GenerateDefaultRoute::generate_confirm_and_save_specific_default_route() {
+
+        auto route_table_ptr = generate_specific_default_route();   //生成指定维度的路由表
+        confirm_route_table(*route_table_ptr);  //验证路由表的准确性
+
+        std::string route_file_name = "route_default";
+        for (auto const &e: dim) {
+            route_file_name += ("_" + std::to_string(e));
+        }
+        auto route_able_file_save_path = BaseInfo::getInstance()->route_dir_path + "/" + route_file_name;
+        save_data_to_file_test(route_able_file_save_path, *route_table_ptr);
+
+        std::vector<std::vector<unsigned >> route;
+        load_data_from_file_test(route_able_file_save_path, route);
+    }
+
+    void GenerateDefaultRoute::generate_confirm_and_save_specific_default_route_save_txt() {
 
         auto route_table_ptr = generate_specific_default_route();   //生成指定维度的路由表
         confirm_route_table(*route_table_ptr);  //验证路由表的准确性
@@ -176,24 +206,10 @@ namespace dtb {
         }
         route_file_name += ".txt";
         std::cout << route_file_name << std::endl;
-        std::ofstream outFile;
-        //打开文件
+        auto route_able_file_save_path = BaseInfo::getInstance()->route_dir_path + "/" + route_file_name;
 
-        outFile.open(BaseInfo::getInstance()->route_dir_path + "/" + route_file_name, std::ios::out);
+        save_txt_route_file(route_able_file_save_path, route_table_ptr, dim);
 
-        if (!outFile.is_open()) {
-            std::cout << "open error!" << std::endl;
-            return;
-        }
-        int N = std::accumulate(dim.begin(), dim.end(), 1, [](int a, int b) { return a * b; });   //节点数目为累乘结果
-        for (gpu_size_type i = 0; i < N; ++i) {
-            for (gpu_size_type j = 0; j < N; ++j) {
-                outFile << (*route_table_ptr)[i][j] << " ";
-            }
-            outFile << std::endl;
-        }
-        //关闭文件
-        outFile.close();
     }
 }
 

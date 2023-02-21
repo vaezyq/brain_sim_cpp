@@ -21,26 +21,20 @@
 #include <sstream>
 #include "BaseInfo.hpp"
 
+
+using namespace std::literals;
 namespace dtb {
-
-    using gpu_size_type = unsigned;  //所有gpu卡编号采用unsigned,目前卡编号远小于这个数值
-
-    using pop_size_type = unsigned;  //所有pop编号采用unsigned,目前体素大概十万,64位系统远远满足
-
-    using neuron_size_type = double;   //神经元数目目前为亿级别，最大为860亿，可采用double表示
-
-    using traffic_size_type = double;     //目前的流量统计，使用unsigned一定会溢出，也可以使用unsigned long long,这里直接使用double
 
 
     /*!
-    * 传入一个vector,以及文件路径，将文件内数据读入vector中
-    * @tparam T  vector需要存储的元素类型
+    * 传入一个array,以及文件路径，将文件内数据读入array中，注意这里读取的文件每一行仅有一个元素
+    * @tparam T  array需要存储的元素类型
     * @param data 读取后写入的目标容器
     * @param file_path 读取文件路径
     * @param len 读取长度
      */
     template<typename T, size_t N>
-    void load_vector_data(std::array<T, N> &data, const std::string &file_path, int len);
+    void load_vector_data(std::array<T, N> &data, const std::string &file_path);
 
 
     /*!
@@ -114,19 +108,25 @@ namespace dtb {
 
 
     template<typename T, size_t N>
-    void load_vector_data(std::array<T, N> &data, const std::string &file_path, const int len) {
+    void load_vector_data(std::array<T, N> &data, const std::string &file_path) {
         try {
             std::ifstream file_data;
             std::string line;
-            file_data.open(file_path);
+            file_data.open(file_path);        //将文件读取到流中
             file_data.exceptions(std::ifstream::badbit);
-            int idx = 0;
-            while (getline(file_data, line)) {
-                data[idx++] = strtod(line.substr(0, line.size()).c_str(), nullptr);
-            }
+
+            std::generate(data.begin(), data.end(), [&file_data, line = ""s]()mutable {
+                getline(file_data, line);                                          //每一行数据只包含一个double类型，将其读取后用过strtod转换
+                return strtod(line.substr(0, line.size()).c_str(), nullptr);
+            });
+//            int idx = 0;
+//            while (getline(file_data, line)) {      //本文件每一行都会包含一个double对象
+//                data[idx++] =
+//            }
         } catch (std::ios_base::failure &e) {
-            std::cout << "write result to file failed," << e.what() << std::endl;
-            std::terminate();
+            std::cout << "Read file failed," << e.what() << std::endl;
+//            std::terminate();
+            exit(1);
         }
     }
 
@@ -153,7 +153,7 @@ namespace dtb {
     traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times) {
         srand(time(nullptr));
         std::unordered_set<unsigned long> random_sample;
-        for (unsigned  i = 0; i < sample_times; ++i) {
+        for (unsigned i = 0; i < sample_times; ++i) {
 //        std::uniform_int_distribution<int> dist(0, sample_range);
             auto sample_range_int = static_cast<long long >(sample_range);
             if (auto result = rand() % sample_range_int;!random_sample.count(result)) {
