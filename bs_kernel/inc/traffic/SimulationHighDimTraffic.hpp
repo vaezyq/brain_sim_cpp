@@ -128,7 +128,9 @@ namespace dtb {
 //                auto const &forward_idx = get_list_send_by_route_table(i, recv_lists);
 //                simulate_specific_dim_input_output_traffic_per_gpu(i, dimensions - 1, output_input_traffic,
 //                                                                   *forward_idx);
-                simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
+                simulate_2_dim_input_output_traffic_per_gpu_no_recursive_thread_version(i,output_input_traffic);
+
+//                simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
             }
             MPI_Send(&output_input_traffic[0], static_cast<int>(GPU_NUM * 2 * dimensions), MPI_DOUBLE, master_rank, 0,
                      MPI_COMM_WORLD);
