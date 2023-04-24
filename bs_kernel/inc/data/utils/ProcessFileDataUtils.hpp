@@ -482,5 +482,29 @@ namespace dtb {
     }
 
 
+    template<typename T>
+    void load_one_dim_traffic_two_dim_result(const std::string &file_path, T &one_dim_traffic) {
+        std::ifstream traffic_table_file;
+        std::string line;
+
+        traffic_table_file.open(file_path);
+        if (!traffic_table_file.is_open()) {
+            std::cout << "traffic table file open failed" << std::endl;
+            return;
+        }
+        gpu_size_type idx = 0;
+        while (getline(traffic_table_file, line)) {  //每一行都是空格隔开的数字(含有GPU_NUM行)
+            std::string item;
+            std::stringstream text_stream(line);
+            gpu_size_type i = 0;
+            while (std::getline(text_stream, item, ' ')) {
+                one_dim_traffic[idx][i++] = stod(item);
+            }
+            idx++;
+        }
+        traffic_table_file.close();
+    }
+
+
 }
 

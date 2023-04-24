@@ -12,25 +12,31 @@
 #include <algorithm>
 #include "traffic/SimulationOneDimTraffic.hpp"
 #include "traffic/SimulationHighDimTraffic.hpp"
+#include "data/utils/ProcessFileDataUtils.hpp"
 
 using namespace std;
 
 int main(int argc, char **argv) {
 
 
-    int flag = 1;
+    int flag = 5;
 
 
     if (flag == 1) {    //测试计算gpu to gpu的流量是否与真实模拟traffic.txt符合
         std::vector<std::vector<double> > traffic_res(dtb::GPU_NUM, std::vector<double>(dtb::GPU_NUM, 0));
-        dtb::LoadData::load_one_dim_traffic_result(traffic_res);
+
+        std::string traffic_file_name = "traffic_table_base_dcu_out_in_1_dimmap_2000_sequential_cortical_v2.txt";
+        auto base_info_ptr = dtb::BaseInfo::getInstance();
+        base_info_ptr->traffic_read_write_path + "/" + traffic_file_name;
+
+        dtb::load_one_dim_traffic_two_dim_result(traffic_file_name, traffic_res);
 
 //        double res = 0;
         dtb::SimulationTrafficUtils stu;
         for (int i = 0; i < 2000; ++i) {
             double traffic = stu.sim_traffic_between_two_gpu(0, i);
 //            res += traffic;
-            cout << i << " " << traffic << " " << traffic_res[0][i] << endl;
+            cout << i << " " << static_cast<unsigned long long> (traffic) << " " << traffic_res[0][i] << endl;
         }
     } else if (flag == 2) {
         dtb::SimulationTrafficUtils stu;
@@ -68,6 +74,35 @@ int main(int argc, char **argv) {
         dtb::SimulationHighDimTraffic shd(argc, argv);
         shd.show_basic_information();
         shd.compute_simulation_traffic();
+    } else if (flag == 5) {
+
+        dtb::SimulationTrafficUtils stu;
+
+        std::array<dtb::traffic_size_type, dtb::GPU_NUM << 2> output_input_traffic{};
+
+        for (auto i = 1997; i != 1998; ++i) {
+            dtb::TimePrint tp;
+            stu.simulate_2_dim_input_output_traffic_per_gpu_no_recursive_thread_version(i, output_input_traffic);
+
+//            stu.simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
+            tp.print_time();
+        }
+        for (int i = 0; i != 2000; i++) {
+            if (output_input_traffic[4 * i] != 0 || output_input_traffic[4 * i + 1] != 0) {
+                cout << i << " " << output_input_traffic[4 * i] << " "
+                     << output_input_traffic[4 * i + 1] << endl;
+            }
+        }
+
+        cout << "input" << endl;
+        for (int i = 0; i != 2000; i++) {
+            if (output_input_traffic[4 * i + 2] != 0 || output_input_traffic[4 * i + 3] != 0) {
+                cout << i << " " << output_input_traffic[4 * i + 2] << " "
+                     << output_input_traffic[4 * i + 3] << endl;
+            }
+        }
+
+
     }
 
 

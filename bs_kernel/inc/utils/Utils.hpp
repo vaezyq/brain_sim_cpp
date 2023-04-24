@@ -57,7 +57,6 @@ namespace dtb {
 
 
 
-
     /*!
      *
      * @tparam T
@@ -86,6 +85,10 @@ namespace dtb {
     write_map_data_to_file(const T &data, std::string const &file_path);
 
 
+
+
+    // (0,50000)  200000   5w
+
     traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times) {
         srand(time(nullptr));
         std::unordered_set<unsigned long> random_sample;
@@ -98,6 +101,8 @@ namespace dtb {
         }
         return random_sample.size();
     }
+
+
 
 
     template<size_t size>

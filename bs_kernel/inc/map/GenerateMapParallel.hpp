@@ -37,11 +37,11 @@ namespace dtb {
 
     };
 
+
     GenerateMapParallel::GenerateMapParallel(int argc, char **argv, Iter_Criteria iterCriteria) : MpiManage(argc, argv),
                                                                                                   SimTrafficForGenMapUtils(
 
                                                                                                           iterCriteria) {}
-
 
     void GenerateMapParallel::generate_map_by_balance_traffic() {
 

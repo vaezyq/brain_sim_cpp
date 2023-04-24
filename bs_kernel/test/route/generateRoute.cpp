@@ -7,6 +7,8 @@
 
 int main() {
 
+    int a = 2;
+    std::cout << (a << 2);
 
     dtb::TimePrint tp;
     std::vector<unsigned int> dim{50, 40};

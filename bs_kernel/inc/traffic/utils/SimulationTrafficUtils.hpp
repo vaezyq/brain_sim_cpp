@@ -14,6 +14,8 @@
 #include "utils/TimePrint.hpp"
 #include <string>
 #include "data/LoadData.hpp"
+#include <thread>
+#include <mutex>
 
 
 namespace dtb {
@@ -69,13 +71,46 @@ namespace dtb {
                                                                               GPU_NUM
                                                                                       << 2> &output_input_traffic);
 
-        SimulationTrafficUtils();
-
-
+        /*!
+         * 计算发生变化的体素编号的变化流量
+         * @param send_idx  发送方gpu编号
+         * @param changed_pop_lists_in_send  发生变化的体素编号
+         * @param recv_idx_lists   接收gpu编号
+         * @param map_table  map表
+         * @return  返回发生变化的gpu产生的流量
+         */
         traffic_size_type
         compute_pop_traffic(const gpu_size_type &send_idx, const std::vector<gpu_size_type> &changed_pop_lists_in_send,
                             const std::vector<gpu_size_type> &recv_idx_lists,
                             std::vector<std::unordered_map<gpu_size_type, double> > &map_table = load_data_ptr->getMapTable());
+
+
+        /*!
+         * 计算流量的线程入口函数
+         * @param forward_list_send   转发表
+         * @param send_idx  发送卡编号
+         * @param output_input_traffic 存储用于计算的流量
+         * @param start 需要计算的接收卡起始编号
+         * @param end 需要计算的接收卡结束编号
+         */
+        void calculate_traffic_by_thread_func(
+                std::unordered_map<gpu_size_type, std::vector<gpu_size_type >> &forward_list_send,
+                const gpu_size_type &send_idx, std::array<traffic_size_type, GPU_NUM << 2> &output_input_traffic,
+                std::vector<gpu_size_type>::iterator start, std::vector<gpu_size_type>::iterator end);
+
+
+        /*!
+         * 使用多线程计算卡流量的版本
+         * @param send_idx  发送idx
+         * @param output_input_traffic  输入输出流量
+         */
+        void simulate_2_dim_input_output_traffic_per_gpu_no_recursive_thread_version(const gpu_size_type &send_idx,
+                                                                                     std::array<traffic_size_type,
+                                                                                             GPU_NUM
+                                                                                                     << 2> &output_input_traffic);
+
+
+        SimulationTrafficUtils();
 
     protected:
         /*!
@@ -93,6 +128,10 @@ namespace dtb {
         std::array<traffic_size_type, POP_NUM> pops_sam_range;
 
         static const std::shared_ptr<LoadData> load_data_ptr;//需要load_data实例加载数据
+
+
+    private:
+        std::mutex traffic_table_mutex;         //写流量的多线程锁
     };
 
     const std::shared_ptr<LoadData>   SimulationTrafficUtils::load_data_ptr = LoadData::getLoadDataInstance();
@@ -292,6 +331,128 @@ namespace dtb {
         }
         return traffic_gpu_to_group;
     }
+
+    void SimulationTrafficUtils::simulate_2_dim_input_output_traffic_per_gpu_no_recursive_thread_version(
+            const gpu_size_type &send_idx, std::array<traffic_size_type, GPU_NUM << 2> &output_input_traffic) {
+
+        std::vector<gpu_size_type> recv_lists(dtb::GPU_NUM, 0);
+        std::generate(recv_lists.begin(), recv_lists.end(), [i = 0]()mutable { return i++; });
+
+        auto const &forward_list_send = get_list_send_by_route_table(send_idx, recv_lists);
+
+//        std::map<gpu_size_type, std::vector<gpu_size_type>> send_dict_init;
+
+        std::vector<gpu_size_type> send_key_list;
+
+        std::generate_n(std::back_inserter(send_key_list), forward_list_send->size(),
+                        [it = forward_list_send->begin()]()mutable {
+                            return (it++)->first;
+                        });
+
+        std::for_each(send_key_list.begin(), send_key_list.end(), [](int i) { std::cout << i << " "; });
+        std::cout << std::endl;
+
+        unsigned long const min_len_per_thread = 2;    //每个线程最少需要处理的数目
+        unsigned long const max_threads =
+                (send_key_list.size() + min_len_per_thread - 1) / min_len_per_thread;   //最大线程个数
+        unsigned long const hardware_threads = std::thread::hardware_concurrency();       //硬件支持并发数目
+//        std::cout << "hardware_threads: " << hardware_threads << std::endl;
+
+        unsigned long num_threads = std::min(hardware_threads != 0 ? hardware_threads : 2, max_threads);
+
+//        std::cout << "threads num: " << num_threads << std::endl;
+        unsigned long const calcu_block_len = send_key_list.size() / num_threads;
+
+//        std::cout << "calcu_block_len: " << calcu_block_len << std::endl;
+
+        std::vector<std::thread> threads(num_threads - 1);
+        auto block_start = send_key_list.begin();
+
+
+        for (auto i = 0; i < (num_threads - 1); ++i) {
+            auto block_end = block_start;
+            std::advance(block_end, calcu_block_len);
+
+            threads[i] = std::thread(&SimulationTrafficUtils::calculate_traffic_by_thread_func, this,
+                                     std::ref(*forward_list_send),
+                                     send_idx, std::ref(output_input_traffic), block_start,
+                                     block_end);
+//            std::mutex iomutex;
+//            cpu_set_t cpuset;
+//            CPU_ZERO(&cpuset);
+//            CPU_SET(i, &cpuset);
+//            int rc = pthread_setaffinity_np(threads[i].native_handle(),
+//                                            sizeof(cpu_set_t), &cpuset);
+//            if (rc != 0) {
+//                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+//            }
+//            std::lock_guard<std::mutex> iolock(iomutex);
+//            std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << "\n";
+
+            block_start = block_end;
+        }
+
+
+        //主线程计算最后一部分]
+        auto block_end = send_key_list.end();
+        calculate_traffic_by_thread_func(*forward_list_send, send_idx, output_input_traffic, block_start, block_end);
+
+        for (auto &thread: threads) {
+            thread.join();          //阻塞等待全部线程运行完毕
+        }
+    }
+
+
+    void SimulationTrafficUtils::calculate_traffic_by_thread_func(
+            std::unordered_map<gpu_size_type, std::vector<gpu_size_type >> &forward_list_send,
+            const gpu_size_type &send_idx,
+            std::array<traffic_size_type, GPU_NUM << 2> &output_input_traffic,
+            std::vector<gpu_size_type>::iterator start, std::vector<gpu_size_type>::iterator end) {
+
+        TimePrint tp;
+
+        std::for_each(start, end, [](gpu_size_type i) { std::cout << i << " "; });
+        std::cout << std::endl;
+//        std::cout << "distance: " << std::distance(start, end) << std::endl;
+
+        traffic_size_type temp_traffic{0.0};
+        unsigned dimensions = 2;
+        for (auto it = start; it != end; ++it) {
+//            std::cout << *it << " " << std::this_thread::get_id() << std::endl;
+            if (forward_list_send[*it].size() == 1) {
+                if (!is_in_same_node(send_idx, *it)) {
+                    temp_traffic = sim_traffic_between_two_gpu(send_idx, *it);
+                    {
+                        std::lock_guard<std::mutex> lg(traffic_table_mutex);         //对本行数据加锁写
+                        output_input_traffic[(send_idx << 2)] += temp_traffic;
+                        output_input_traffic[(*it << 2) + dimensions] += temp_traffic;
+                    }
+                }
+            } else {
+                temp_traffic = sim_traffic_between_gpu_group(send_idx, forward_list_send[*it]);
+                {
+                    std::lock_guard<std::mutex> lg(traffic_table_mutex);
+                    output_input_traffic[send_idx << 2] += temp_traffic;
+                    output_input_traffic[(*it << 2) + dimensions] += temp_traffic;
+                }
+                auto forward_sub_idx = get_list_send_by_route_table(*it,
+                                                                    forward_list_send[*it]);
+                for (auto &in_idx_pair_1: *forward_sub_idx) {
+                    if (!is_in_same_node(send_idx, in_idx_pair_1.first)) {
+                        temp_traffic = sim_traffic_between_two_gpu(send_idx, in_idx_pair_1.first);
+                        {
+                            std::lock_guard<std::mutex> lg(traffic_table_mutex);
+                            output_input_traffic[(*it << 2) + 1] += temp_traffic;
+                            output_input_traffic[(in_idx_pair_1.first << 2) + 1 + dimensions] += temp_traffic;
+                        }
+                    }
+                }
+            }
+        }
+//        tp.print_time();
+    }
+
+
 }
 
 
