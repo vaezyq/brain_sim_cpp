@@ -1,6 +1,8 @@
 project(TestMpi)
 enable_testing()
 add_executable(TestMpi mpiTest.cpp)
+add_executable(TestMpiEnv mpiRunEnv.cpp)
+add_executable(TestMpiSpeed mpiSendSpeedTest.cpp)
 
 include_directories(${THIRD_PARTY_GTEST_INC_DIR}
         ${BS_INCLUDE_DIR} ${THIRD_PARTY_MPI_INC_DIR})

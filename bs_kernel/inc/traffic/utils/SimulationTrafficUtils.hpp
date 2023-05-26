@@ -11,9 +11,10 @@
 #pragma once
 
 #include <numeric>
-#include "utils/TimePrint.hpp"
+
+#include "../../utils/TimePrint.hpp"
 #include <string>
-#include "data/LoadData.hpp"
+#include "../../data/LoadData.hpp"
 #include <thread>
 #include <mutex>
 
@@ -112,6 +113,13 @@ namespace dtb {
 
         SimulationTrafficUtils();
 
+
+        void simulate_two_dim_input_output_traffic_by_physical_topology(const gpu_size_type &send_idx,
+                                                                        std::array<traffic_size_type,
+                                                                                GPU_NUM
+                                                                                        << 2> &output_input_traffic);
+
+
     protected:
         /*!
             * 得到采样次数
@@ -163,8 +171,10 @@ namespace dtb {
 ////                printf("gpu_in_idx %d\n")
 ////                sample_range = static_cast<unsigned int> (pops_sam_range[k_out] * v_out);
 //            }
+
+
             if (sample_times != 0) {
-                if ((sample_range * 4) < sample_times) {
+                if ((sample_range * 2) < sample_times) {
                     traffic_gpu_to_gpu += sample_range;
                 } else {
                     traffic_gpu_to_gpu += sample(sample_range, sample_times);
@@ -349,8 +359,8 @@ namespace dtb {
                             return (it++)->first;
                         });
 
-        std::for_each(send_key_list.begin(), send_key_list.end(), [](int i) { std::cout << i << " "; });
-        std::cout << std::endl;
+//        std::for_each(send_key_list.begin(), send_key_list.end(), [](int i) { std::cout << i << " "; });
+//        std::cout << std::endl;
 
         unsigned long const min_len_per_thread = 2;    //每个线程最少需要处理的数目
         unsigned long const max_threads =
@@ -413,10 +423,11 @@ namespace dtb {
 
         std::for_each(start, end, [](gpu_size_type i) { std::cout << i << " "; });
         std::cout << std::endl;
-//        std::cout << "distance: " << std::distance(start, end) << std::endl;
 
         traffic_size_type temp_traffic{0.0};
         unsigned dimensions = 2;
+
+
         for (auto it = start; it != end; ++it) {
 //            std::cout << *it << " " << std::this_thread::get_id() << std::endl;
             if (forward_list_send[*it].size() == 1) {
@@ -445,11 +456,43 @@ namespace dtb {
                             output_input_traffic[(*it << 2) + 1] += temp_traffic;
                             output_input_traffic[(in_idx_pair_1.first << 2) + 1 + dimensions] += temp_traffic;
                         }
+
                     }
                 }
             }
         }
-//        tp.print_time();
+    }
+
+
+    void
+    SimulationTrafficUtils::simulate_two_dim_input_output_traffic_by_physical_topology(const gpu_size_type &send_idx,
+                                                                                       std::array<traffic_size_type,
+                                                                                               GPU_NUM
+                                                                                                       << 2> &output_input_traffic) {
+        unsigned dimensions = 2;
+
+        std::unordered_map<gpu_size_type, std::vector<gpu_size_type >> send_idx_list;
+        for (gpu_size_type recv_idx = 0; recv_idx < GPU_NUM; ++recv_idx) {      //得到本次的发送情况
+            if (!is_in_same_node(send_idx, recv_idx)) {     //不在同一节点内
+                send_idx_list[load_data_ptr->getRouteTable()[send_idx][recv_idx]].emplace_back(recv_idx);
+            }
+        }
+
+        for (auto &kv: send_idx_list) {
+
+            auto temp_traffic = sim_traffic_between_gpu_group(send_idx, kv.second);
+            output_input_traffic[send_idx << 2] += temp_traffic;
+            output_input_traffic[(kv.first << 2) + dimensions] += temp_traffic;
+
+            for (auto &e: kv.second) {
+                if (!is_in_same_node(e, kv.first)) {    //不在一个节点内
+
+                    temp_traffic = sim_traffic_between_two_gpu(send_idx, e);
+                    output_input_traffic[(kv.first << 2) + 1] += temp_traffic;         //第二阶段
+                    output_input_traffic[(e << 2) + dimensions + 1] += temp_traffic;
+                }
+            }
+        }
     }
 
 

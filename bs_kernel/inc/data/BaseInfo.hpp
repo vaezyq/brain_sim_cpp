@@ -50,7 +50,7 @@ namespace dtb {
     //  流量统计结果,2000卡100亿神经元时结果级别为10e7,使用unsigned一定会溢出,也可以使用unsigned long long,这里直接使用double
     using traffic_size_type = double;
 
-    constexpr gpu_size_type GPU_NUM = 2000;                 //  模拟的GPU的个数
+    constexpr gpu_size_type GPU_NUM = 1000;                 //  模拟的GPU的个数
     constexpr neuron_size_type NEURON_NUM = 1e10;           //  模拟的神经元个数
     constexpr pop_size_type POP_NUM = 171508;               //  模拟的population的个数
 
@@ -85,11 +85,11 @@ namespace dtb {
                 traffic_base_path + "/" + "traffic_" + std::to_string(GPU_NUM);// * 流量表读写路径
 
     public:    // * 常用表数据文件名
-        const std::string route_file_name = "route_default_40_50";   // * 路由表文件名
+        const std::string route_file_name = "route_phy_1000";   // * 路由表文件名
 
         const std::string conn_file_name = "conn_dict_int";     // * 连接概率表文件名
 
-        const std::string map_file_name = "map_2000_after_size_balance";        // * map表文件名
+        const std::string map_file_name = "map_1000_after_size_balance_without_invalid_index.txt";        // * map表文件名
 
         const std::string size_file_name = "size";   // * size表文件名
 

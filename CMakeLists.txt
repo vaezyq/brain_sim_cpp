@@ -4,7 +4,7 @@ project(brain_sim)
 IF (WIN32)
     MESSAGE(STATUS "Now is windows")
 ELSEIF (APPLE)
-    MESSAGE(STATUS "Now is Apple systens.")
+    MESSAGE(STATUS "Now is Apple system's.")
 ELSEIF (UNIX)
     MESSAGE(STATUS "Now is UNIX-like OS's.")
 ENDIF ()
@@ -38,7 +38,7 @@ set (THIRD_PARTY_MPI_INC_DIR ${THIRD_PARTY_BASE_DIR}/mpich-x86_64)
 
 
 include_directories("/usr/include/mpich-x86_64")
-add_executable(generateDefaultRoute test/generateRoute.cpp code/Utils/AssertUtils.hpp code/Utils/ProcessFileDataUtils.hpp code/Utils/GenerateRouteUtils.hpp)
+add_executable(generateDefaultRoute test/generateRoute.cpp code/Utils/AssertUtils.hpp code/Utils/ProcessFileDataUtils.hpp code/Utils/GenerateRouteUtils.hpp bs_kernel/inc/route/GenerateRouteByPhysicalTopology.hpp bs_kernel/inc/mpi/MpiNodeInfo.hpp bs_kernel/inc/traffic/SimulationHighDimTraffic.hpp)
 
 
 add_executable(loadDataTest test/loadDataTest.cpp)
@@ -65,3 +65,8 @@ target_link_libraries(simulationTrafficTest PUBLIC MPI::MPI_CXX)
 target_link_libraries(generateMap PUBLIC MPI::MPI_CXX)
 
 add_subdirectory(bs_kernel)
+
+
+add_executable(mpiEnvShow bs_kernel/test/mpi/mpiEnvShow.cpp)
+add_executable(generatePhysicalRoute bs_kernel/test/route/generatePhysicalRoute.cpp)
+add_executable(traffic_result_test bs_kernel/test/traffic/traffic_result_test.cpp)

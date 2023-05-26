@@ -19,10 +19,12 @@
 #include <fstream>
 #include <cassert>
 #include <cmath>
-#include "data/BaseInfo.hpp"
-#include "data/utils/ProcessFileDataUtils.hpp"
-#include "Utils/AssertUtils.hpp"
-#include "route/utils/GenerateRouteUtils.hpp"
+
+
+#include "../../inc/data/BaseInfo.hpp"
+#include "../../inc/data/utils/ProcessFileDataUtils.hpp"
+#include "../../inc/utils/AssertUtils.hpp"
+#include "../../inc/route/utils/GenerateRouteUtils.hpp"
 
 //todo: 新增生成json格式的路由表,可以使用rapidjson
 
@@ -76,6 +78,7 @@ namespace dtb {
         std::vector<gpu_size_type> dim;   //存储维度
 
         std::vector<gpu_size_type>::size_type dim_len;   //维度的个数
+
 
 
 
@@ -191,7 +194,7 @@ namespace dtb {
         save_two_dim_data_to_binary_file(route_able_file_save_path, *default_route_table_ptr);
 
 
-        std::vector<std::vector<unsigned >> route(2000, std::vector<unsigned>(2000, 0));
+        std::vector<std::vector<unsigned >> route(GPU_NUM, std::vector<unsigned>(GPU_NUM, 0));
         load_two_dim_data_from_binary_file(route_able_file_save_path, route);
 //        load_data_from_binary_file();
         std::cout << "show " << dtb::GPU_NUM << " gpu route: " << std::endl;

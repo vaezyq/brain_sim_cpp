@@ -14,14 +14,12 @@
 #include <fstream>
 #include <memory>
 #include <string>
-#include "Utils/Utils.hpp"
+#include "../utils/Utils.hpp"
 #include <cassert>
 #include <array>
-#include "Utils/AssertUtils.hpp"
-#include "data/utils/ProcessFileDataUtils.hpp"
-#include "route/utils/GenerateRouteUtils.hpp"
-
-
+#include "../utils/AssertUtils.hpp"
+#include "utils/ProcessFileDataUtils.hpp"
+#include "../route/utils/GenerateRouteUtils.hpp"
 
 /*
  * todo: 加载数据的部分或许可以参考下述链接进行重构
@@ -140,7 +138,6 @@ namespace dtb {
         load_map(), load_conn(), load_size(), load_degree(), load_route();
 
 //        confirm_load_data();  //验证读取结果是否正确，因为验证路由表很耗时，有时可以省略这一步
-        show_basic_information();
     }
 
 
@@ -188,16 +185,15 @@ namespace dtb {
 
         std::string map_table_file_path = base_info_ptr->map_read_path + '/' + base_info_ptr->map_file_name;
 
-        load_map_data_from_binary_file(map_table_file_path,map_table);
 
+        load_map_from_txt_file(map_table_file_path, map_table);
+
+//        load_map_data_from_binary_file(map_table_file_path, map_table);
     }
 
     void LoadData::load_size() {
-
-
         load_one_dim_data_from_binary_file(base_info_ptr->conn_dir_path + "/" + base_info_ptr->size_file_name,
                                            size_table);
-
 
 //        load_vector_data_from_txt(size_table, base_info_ptr->conn_dir_path + "/" + base_info_ptr->size_file_name);
 
@@ -252,6 +248,7 @@ namespace dtb {
 
     LoadData::LoadData() {
         load_data();
+//        confirm_load_data();
     }
 
     void LoadData::show_basic_information() {

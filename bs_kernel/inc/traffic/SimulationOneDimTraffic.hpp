@@ -11,8 +11,8 @@
 #pragma once
 
 #include <numeric>
-#include "traffic/utils/SimulationTrafficUtils.hpp"
-#include "mpi/MpiManage.hpp"
+#include "utils/SimulationTrafficUtils.hpp"
+#include "../mpi/MpiManage.hpp"
 #include <string>
 
 namespace dtb {
@@ -73,7 +73,7 @@ namespace dtb {
                     BaseInfo::getInstance()->traffic_read_write_path + get_write_traffic_file_name();
 
 
-            save_one_dim_data_to_binary_file(traffic_file_write_path,traffic_res);
+            save_one_dim_data_to_binary_file(traffic_file_write_path, traffic_res);
 
             std::cout << "simulation traffic finished" << std::endl;
             std::cout << traffic_file_write_path << " saved." << std::endl;

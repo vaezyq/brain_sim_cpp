@@ -25,7 +25,7 @@
 #include <array>
 #include <fstream>
 #include <sstream>
-#include "data/BaseInfo.hpp"
+#include "../data/BaseInfo.hpp"
 
 
 using namespace std::literals;
@@ -56,7 +56,6 @@ namespace dtb {
     traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times);
 
 
-
     /*!
      *
      * @tparam T
@@ -78,17 +77,19 @@ namespace dtb {
      * @return
      */
     template<typename T, size_t size>
-    std::unique_ptr<std::array<T, size>> argsort(const std::array<T, size> &traffic_table);
+    std::unique_ptr<std::array<gpu_size_type, size>> argsort(const std::array<T, size> &traffic_table);
+
 
     template<typename T>
     void
     write_map_data_to_file(const T &data, std::string const &file_path);
 
-
-
-
-    // (0,50000)  200000   5w
-
+    /*!
+     *
+     * @param sample_range
+     * @param sample_times
+     * @return
+     */
     traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times) {
         srand(time(nullptr));
         std::unordered_set<unsigned long> random_sample;
@@ -102,9 +103,11 @@ namespace dtb {
         return random_sample.size();
     }
 
-
-
-
+    /*!
+     *
+     * @tparam size
+     * @param traffic_table
+     */
     template<size_t size>
     void print_max_min_aver_traffic_info(const std::array<traffic_size_type, size> &traffic_table) {
 
@@ -122,10 +125,11 @@ namespace dtb {
     }
 
 
-
     template<typename T, size_t size>
-    std::unique_ptr<std::array<T, size>> argsort(const std::array<T, size> &traffic_table) {
-        auto res_ptr = std::make_unique<std::array<T, size>>(std::array<T, size>());
+    std::unique_ptr<std::array<gpu_size_type, size>> argsort(const std::array<T, size> &traffic_table) {
+
+
+        auto res_ptr = std::make_unique<std::array<gpu_size_type, size>>(std::array<gpu_size_type, size>());
         std::iota(res_ptr->begin(), res_ptr->end(), 0);
         std::sort(res_ptr->begin(), res_ptr->end(), [&traffic_table](int left, int right) {
             return traffic_table[left] < traffic_table[right];

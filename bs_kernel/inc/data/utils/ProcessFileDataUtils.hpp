@@ -25,7 +25,8 @@
 #include <array>
 #include <fstream>
 #include <sstream>
-#include "data/BaseInfo.hpp"
+#include <unordered_map>
+#include "../BaseInfo.hpp"
 
 namespace dtb {
 
@@ -134,6 +135,12 @@ namespace dtb {
     void save_map_data_to_txt_file(std::string const &file_path, const T &data);
 
 
+    /*!
+     *
+     * @tparam TableData
+     * @param file_path
+     * @param table_data
+     */
     template<typename TableData>
     void save_two_dim_data_to_binary_file(const std::string &file_path, const TableData &table_data) {
         try {
@@ -270,7 +277,8 @@ namespace dtb {
 
     template<typename RouteTable>
     void
-    save_two_dim_route_data_to_txt_file(const std::string &route_table_file_path, const RouteTable &default_route_table,
+    save_two_dim_route_data_to_txt_file(const std::string &route_table_file_path,
+                                        const RouteTable &default_route_table_ptr,
                                         const std::vector<gpu_size_type> &dim) {
         try {
             std::ofstream outFile;
@@ -285,7 +293,7 @@ namespace dtb {
             int N = std::accumulate(dim.begin(), dim.end(), 1, [](int a, int b) { return a * b; });   //节点数目为累乘结果
             for (gpu_size_type i = 0; i < N; ++i) {
                 for (gpu_size_type j = 0; j < N; ++j) {
-                    outFile << (default_route_table)[i][j] << " ";
+                    outFile << (default_route_table_ptr)[i][j] << " ";
                 }
                 outFile << std::endl;
             }
@@ -295,7 +303,6 @@ namespace dtb {
             std::cout << "load route table file " << route_table_file_path << " failed," << e.what() << std::endl;
             exit(1);
         }
-
     }
 
 
@@ -315,6 +322,7 @@ namespace dtb {
 //            while (getline(file_data, line)) {      //本文件每一行都会包含一个double对象
 //                data[idx++] =
 //            }
+            file_data.close();
         } catch (std::ios_base::failure &e) {
             std::cout << "Read file failed," << e.what() << std::endl;
 //            std::terminate();
@@ -365,6 +373,7 @@ namespace dtb {
             std::vector<double> key(conn_dict_table.size(), 0);
             std::vector<double> value(conn_dict_table.size(), 0);
 
+
             gpu_size_type s = conn_dict_table.size();  //存储大小
             table_file.write(reinterpret_cast<const char *>(&s), sizeof(s));
 
@@ -396,7 +405,6 @@ namespace dtb {
             //加载table的大小
             table_file.read(reinterpret_cast<char *>(&size), sizeof(size));
 
-            std::cout << size << std::endl;
             std::vector<double> key(size, 0);
             std::vector<double> value(size, 0);
 
@@ -405,7 +413,7 @@ namespace dtb {
             table_file.read(reinterpret_cast< char *>(&value[0]), size * sizeof(double));
 
             for (auto iter = key.begin(), iter2 = value.begin(); iter != key.end();
-                 advance(iter, 1), advance(iter2, 1)) {
+                 std::advance(iter, 1), std::advance(iter2, 1)) {
                 conn_dict_table.emplace(*iter, *iter2);
             }
             table_file.close();
@@ -424,7 +432,7 @@ namespace dtb {
             std::ofstream table_file(file_path, std::ios::out | std::ofstream::binary);
             table_file.exceptions(std::ifstream::badbit);
 
-            for (auto it = map_table.begin(); it != map_table.end(); advance(it, 1)) {
+            for (auto it = map_table.begin(); it != map_table.end(); std::advance(it, 1)) {
                 gpu_size_type s = it->size();  //存储大小
                 table_file.write(reinterpret_cast<const char *>(&s), sizeof(s));
 
@@ -459,7 +467,7 @@ namespace dtb {
 
             map_table.resize(GPU_NUM);
             gpu_size_type size = 0;
-            for (auto it = map_table.begin(); it != map_table.end(); advance(it, 1)) {
+            for (auto it = map_table.begin(); it != map_table.end(); std::advance(it, 1)) {
                 //加载table的大小
                 table_file.read(reinterpret_cast<char *>(&size), sizeof(size));
 
@@ -470,7 +478,7 @@ namespace dtb {
                 table_file.read(reinterpret_cast< char *>(&value[0]), size * sizeof(double));
                 auto iter = key.begin();
                 auto iter2 = value.begin();
-                for (; iter != key.end(); advance(iter, 1), advance(iter2, 1)) {
+                for (; iter != key.end(); std::advance(iter, 1), std::advance(iter2, 1)) {
                     it->emplace(*iter, *iter2);
                 }
             }
@@ -506,5 +514,32 @@ namespace dtb {
     }
 
 
+    void load_map_from_txt_file(const std::string &file_path,
+                                std::vector<std::unordered_map<gpu_size_type, double> > &map_table) {
+
+
+        try {
+            std::ifstream map_table_txt;
+            std::string line;
+            gpu_size_type k{0};
+            double v{0.0};
+            map_table_txt.open(file_path);
+            map_table_txt.exceptions(std::ifstream::badbit);
+            gpu_size_type idx = 0;
+            map_table.resize(GPU_NUM);
+            while (getline(map_table_txt, line)) {
+                std::stringstream word(line);//采用字符流格式将读取的str进行空格分隔，并放入k,v中
+                while (word >> k) {
+                    word >> v;
+                    map_table[idx].insert({k, v});
+                }
+                idx++;
+            }
+        } catch (std::ios_base::failure &e) {
+            std::cout << file_path << std::endl;
+            std::cout << "load map table file failed," << e.what() << std::endl;
+            std::terminate();
+        }
+    }
 }
 

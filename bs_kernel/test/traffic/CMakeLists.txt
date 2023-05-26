@@ -1,6 +1,10 @@
 project(TestTraffic)
 enable_testing()
+
+add_link_options(-lpthread)
 add_executable(TestTraffic trafficSimulationTest.cpp)
+
+
 find_package(MPI REQUIRED)
 include_directories(${THIRD_PARTY_GTEST_INC_DIR}
         ${BS_INCLUDE_DIR})
@@ -17,5 +21,4 @@ ELSEIF (UNIX)
             ${MPI_CXX}
             )
 ENDIF ()
-
 #target_link_libraries(TestTraffic PUBLIC MPI::MPI_CXX)

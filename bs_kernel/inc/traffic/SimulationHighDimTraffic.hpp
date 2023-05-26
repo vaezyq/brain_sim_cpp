@@ -22,6 +22,9 @@ namespace dtb {
 
         std::string get_write_traffic_file_name() override;
 
+
+        void print_traffic_info(std::array<traffic_size_type, GPU_NUM * 2 * dimensions> &output_input_traffic);
+
     public:
         /*!
          * 计算指定维度的输入、输出流量(递归版本),目前这段代码存在问题，二维计算应使用非递归版本
@@ -46,6 +49,8 @@ namespace dtb {
         void compute_simulation_traffic() override;
 
         SimulationHighDimTraffic(int argc, char **argv);
+
+
     };
 
 
@@ -84,10 +89,13 @@ namespace dtb {
 
         if (pro_rank == master_rank) {  //num-1号负责计算末尾部分与合并所有数据
             MPI_Status st;
+            std::cout << pro_size << " " << GPU_NUM - 1 << std::endl;
+
             assert(pro_size <= (static_cast<int>(GPU_NUM) - 1) && pro_size > 1);   //进程的数目要小于等于模拟的卡数
             unsigned cal_row_pre_process = GPU_NUM / (pro_size - 1);
             //todo: 这里是否需要更换为unsigned long
             std::array<traffic_size_type, ((GPU_NUM * dimensions) << 1)> output_input_traffic{};
+
 
             for (int i = 0; i < master_rank; ++i) {
                 std::array<traffic_size_type, GPU_NUM * 2 * dimensions> temp_traffic{};
@@ -101,18 +109,26 @@ namespace dtb {
 
             for (auto i = cal_row_pre_process * (pro_size - 1); i != GPU_NUM; ++i) {     //计算最后一部分剩余流量
 
-                simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
+
+                simulate_two_dim_input_output_traffic_by_physical_topology(i, output_input_traffic);
+
+
+//                simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
 
 //                auto const forward_idx = get_list_send_by_route_table(i, recv_lists);
 //
 //                simulate_specific_dim_input_output_traffic_per_gpu(i, 0, output_input_traffic,
 //                                                                   *forward_idx);
             }
+
+            print_traffic_info(output_input_traffic);
             std::string write_traffic_path =
                     BaseInfo::getInstance()->traffic_read_write_path + "/" + get_write_traffic_file_name();
 
-            save_one_dim_data_to_binary_file(write_traffic_path,output_input_traffic);
 
+            save_one_dim_data_to_txt_file(write_traffic_path, output_input_traffic);
+
+//            save_one_dim_data_to_binary_file(write_traffic_path, output_input_traffic);
 
             std::cout << write_traffic_path << " saved." << std::endl;
         } else {   //辅进程负责计算前面各项
@@ -128,7 +144,9 @@ namespace dtb {
 //                auto const &forward_idx = get_list_send_by_route_table(i, recv_lists);
 //                simulate_specific_dim_input_output_traffic_per_gpu(i, dimensions - 1, output_input_traffic,
 //                                                                   *forward_idx);
-                simulate_2_dim_input_output_traffic_per_gpu_no_recursive_thread_version(i,output_input_traffic);
+//                simulate_2_dim_input_output_traffic_per_gpu_no_recursive_thread_version(i,output_input_traffic);
+
+                simulate_two_dim_input_output_traffic_by_physical_topology(i, output_input_traffic);
 
 //                simulate_2_dim_input_output_traffic_per_gpu_no_recursive(i, output_input_traffic);
             }
@@ -141,6 +159,9 @@ namespace dtb {
     }
 
     SimulationHighDimTraffic::SimulationHighDimTraffic(int argc, char **argv) : SimulationOneDimTraffic(argc, argv) {
+        if (pro_rank == master_rank) {
+            LoadData::getLoadDataInstance()->show_basic_information();
+        }
     }
 
     std::string SimulationHighDimTraffic::get_write_traffic_file_name() {
@@ -150,5 +171,39 @@ namespace dtb {
         std::string route_traffic = base_info_ptr->route_file_name.substr(0, base_info_ptr->route_file_name.size() - 4);
         return route_traffic + "_traffic_" + map_traffic + ".txt";
     }
+
+    void SimulationHighDimTraffic::print_traffic_info(
+            std::array<traffic_size_type, GPU_NUM * 2 * dimensions> &output_input_traffic) {
+
+        std::array<traffic_size_type, GPU_NUM> output_traffic{}, input_traffic{};
+        for (size_t i = 0; i < GPU_NUM; ++i) {
+            output_traffic[i] += output_input_traffic[(i << 2)];
+            output_traffic[i] += output_input_traffic[(i << 2) + 1];
+
+            input_traffic[i] += output_input_traffic[(i << 2) + dimensions];
+            input_traffic[i] += output_input_traffic[(i << 2) + 1 + dimensions];
+        }
+
+        std::cout << "max output traffic: " << *std::max_element(output_traffic.begin(), output_traffic.end())
+                  << std::endl;
+
+        std::cout << "min output traffic: " << *std::min_element(output_traffic.begin(), output_traffic.end())
+                  << std::endl;
+
+        std::cout << "average output traffic: "
+                  << std::accumulate(output_traffic.begin(), output_traffic.end(), 0.0) / output_traffic.size()
+                  << std::endl;
+
+        std::cout << "max input traffic: " << *std::max_element(input_traffic.begin(), input_traffic.end())
+                  << std::endl;
+
+        std::cout << "min input traffic: " << *std::min_element(input_traffic.begin(), input_traffic.end())
+                  << std::endl;
+
+        std::cout << "average input traffic: "
+                  << std::accumulate(output_traffic.begin(), output_traffic.end(), 0.0) / input_traffic.size()
+                  << std::endl;
+    }
+
 
 }

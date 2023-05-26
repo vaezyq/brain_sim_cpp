@@ -9,10 +9,10 @@
 
 #pragma once
 
-#include "data/BaseInfo.hpp"
+#include "../../data/BaseInfo.hpp"
 #include <vector>
 #include <iostream>
-#include "utils/AssertUtils.hpp"
+#include "../../utils/AssertUtils.hpp"
 #include <cmath>
 
 namespace dtb {
@@ -56,6 +56,4 @@ namespace dtb {
             exit(1);
         }
     }
-
-
 }
