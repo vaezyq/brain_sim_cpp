@@ -10,6 +10,8 @@
 #pragma once
 
 #include "SimulationOneDimTraffic.hpp"
+#include "../route/GenerateRouteByTraffic.hpp"
+#include "../data/utils/ProcessFileDataUtils.hpp"
 
 namespace dtb {
 
@@ -131,6 +133,8 @@ namespace dtb {
 //            save_one_dim_data_to_binary_file(write_traffic_path, output_input_traffic);
 
             std::cout << write_traffic_path << " saved." << std::endl;
+
+
         } else {   //辅进程负责计算前面各项
             TimePrint t;    //获取计算时间
             unsigned cal_row_pre_process = GPU_NUM / (pro_size - 1);

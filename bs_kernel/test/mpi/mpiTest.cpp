@@ -3,9 +3,9 @@
 //
 
 
-#include <mpich-x86_64//mpi.h>
-
-#include <iostream>
+//#include <mpich-x86_64//mpi.h>
+//
+//#include <iostream>
 
 #define MAX_LEN 100
 
@@ -17,9 +17,13 @@ using namespace std;
 
 int main(int argc, char **argv) {
 
-    MpiNodeInfo mpiNodeInfo(argc, argv);
-    mpiNodeInfo.start_init();
-    return 0;
+
+    while (int i=1;i<10){
+        ++i;
+    }
+//    MpiNodeInfo mpiNodeInfo(argc, argv);
+//    mpiNodeInfo.start_init();
+//    return 0;
 }
 
 

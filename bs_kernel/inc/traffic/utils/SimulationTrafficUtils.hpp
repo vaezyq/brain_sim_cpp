@@ -479,7 +479,6 @@ namespace dtb {
         }
 
         for (auto &kv: send_idx_list) {
-
             auto temp_traffic = sim_traffic_between_gpu_group(send_idx, kv.second);
             output_input_traffic[send_idx << 2] += temp_traffic;
             output_input_traffic[(kv.first << 2) + dimensions] += temp_traffic;
@@ -488,6 +487,7 @@ namespace dtb {
                 if (!is_in_same_node(e, kv.first)) {    //不在一个节点内
 
                     temp_traffic = sim_traffic_between_two_gpu(send_idx, e);
+
                     output_input_traffic[(kv.first << 2) + 1] += temp_traffic;         //第二阶段
                     output_input_traffic[(e << 2) + dimensions + 1] += temp_traffic;
                 }

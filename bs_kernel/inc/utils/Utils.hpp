@@ -90,18 +90,7 @@ namespace dtb {
      * @param sample_times
      * @return
      */
-    traffic_size_type sample(const traffic_size_type &sample_range, const traffic_size_type &sample_times) {
-        srand(time(nullptr));
-        std::unordered_set<unsigned long> random_sample;
-        for (unsigned i = 0; i < sample_times; ++i) {
-//        std::uniform_int_distribution<int> dist(0, sample_range);
-            auto sample_range_int = static_cast<long long >(sample_range);
-            if (auto result = rand() % sample_range_int;!random_sample.count(result)) {
-                random_sample.insert(result);
-            }
-        }
-        return random_sample.size();
-    }
+
 
     /*!
      *

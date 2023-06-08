@@ -70,3 +70,5 @@ add_subdirectory(bs_kernel)
 add_executable(mpiEnvShow bs_kernel/test/mpi/mpiEnvShow.cpp)
 add_executable(generatePhysicalRoute bs_kernel/test/route/generatePhysicalRoute.cpp)
 add_executable(traffic_result_test bs_kernel/test/traffic/traffic_result_test.cpp)
+
+add_executable(gengerateRouteByTraffic bs_kernel/test/route/gengerateRouteByTraffic.cpp)

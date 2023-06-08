@@ -85,11 +85,11 @@ namespace dtb {
                 traffic_base_path + "/" + "traffic_" + std::to_string(GPU_NUM);// * 流量表读写路径
 
     public:    // * 常用表数据文件名
-        const std::string route_file_name = "route_phy_1000";   // * 路由表文件名
+        const std::string route_file_name = "changed_1000_route";   // * 路由表文件名
 
         const std::string conn_file_name = "conn_dict_int";     // * 连接概率表文件名
 
-        const std::string map_file_name = "map_1000_after_size_balance_without_invalid_index.txt";        // * map表文件名
+        const std::string map_file_name = "map_1000_after_size_balance_random_without_invalid_index.txt";        // * map表文件名
 
         const std::string size_file_name = "size";   // * size表文件名
 

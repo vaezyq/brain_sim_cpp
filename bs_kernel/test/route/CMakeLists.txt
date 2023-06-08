@@ -1,6 +1,6 @@
 project(TestGenerateRoute)
 enable_testing()
-add_executable(TestGenerateRoute generateDefaultRoute.cpp generateRouteByTraffic.hpp)
+add_executable(TestGenerateRoute generateDefaultRoute.cpp ../../inc/route/GenerateRouteByTraffic.hpp)
 
 include_directories(${THIRD_PARTY_GTEST_INC_DIR}
         ${BS_INCLUDE_DIR})
